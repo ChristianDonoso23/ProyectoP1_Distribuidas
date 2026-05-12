@@ -8,11 +8,15 @@ const reservasRoutes = require('./routes/reservas.routes');
 const facturasRoutes = require('./routes/facturas.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const eventosRoutes = require('./routes/eventos.routes');
+const requestLogger = require('./middlewares/loggerMiddleware');
+const errorHandler = require('./middlewares/errorMiddleware');
 
 const app = express();
 
 // Middlewares básicos
 app.use(cors());
+app.use(requestLogger);
+app.use(errorHandler);
 app.use(express.json());
 
 // 2. Vincular las rutas a los Endpoints de la API

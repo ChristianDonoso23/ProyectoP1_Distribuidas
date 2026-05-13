@@ -30,6 +30,10 @@
 		updateStatus('Sincronizando...', 'loading');
 
 		try {
+			if (!global.DashboardMetrics || !global.DashboardCharts || !global.DashboardEvents) {
+				throw new Error('Los módulos del dashboard no cargaron correctamente');
+			}
+
 			const state = await global.DashboardMetrics.loadState();
 			lastState = state;
 

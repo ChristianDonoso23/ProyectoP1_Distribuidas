@@ -20,9 +20,6 @@
 			</article>
 		`).join('');
 	}
-			</article>
-		`).join('');
-	}
 
 	function renderBarList(container, title, meta, items, accentClass) {
 		if (!container) {

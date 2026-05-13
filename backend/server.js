@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 // 1. Importar todas tus rutas
 const mesasRoutes = require('./routes/mesas.routes');
@@ -18,6 +19,9 @@ app.use(cors());
 app.use(requestLogger);
 app.use(errorHandler);
 app.use(express.json());
+
+// Servir archivos estáticos del dashboard
+app.use(express.static(path.join(__dirname, '../frontend/dashboard')));
 
 // 2. Vincular las rutas a los Endpoints de la API
 app.use('/api/mesas', mesasRoutes);

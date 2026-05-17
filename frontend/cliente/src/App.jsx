@@ -9,6 +9,9 @@ function App() {
   const [seleccionadas, setSeleccionadas] = useState([]);
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
   const [horaActual, setHoraActual] = useState(new Date());
+  const [factura, setFactura] = useState(null);
+  const [mostrarFactura, setMostrarFactura] = useState(false);
+  const [cargando, setCargando] = useState(false);
 
   // Reloj interno
   useEffect(() => {
@@ -32,16 +35,27 @@ function App() {
 
     cargarMesas();
 
+    // Evento: mesa ocupada (incluye expiracion desde el backend corregido)
     socket.on('mesa-ocupada', (data) => {
+      const idMesa = parseInt(data.id_mesa);
+      const expiracion = data.expiracion || null;
       setMesas(prev => prev.map(m =>
-        m.id_mesa === parseInt(data.id_mesa) ? { ...m, estado: 'ocupada', expiracion: data.expiracion } : m
+        m.id_mesa === idMesa
+          ? { ...m, estado: 'ocupada', expiracion }
+          : m
       ));
     });
 
+    // Evento: mesa liberada
     socket.on('mesa-liberada', (data) => {
+      const idMesa = parseInt(data.id_mesa);
       setMesas(prev => prev.map(m =>
-        m.id_mesa === parseInt(data.id_mesa) ? { ...m, estado: 'disponible', expiracion: null } : m
+        m.id_mesa === idMesa
+          ? { ...m, estado: 'disponible', expiracion: null }
+          : m
       ));
+      // Deseleccionar si estaba seleccionada
+      setSeleccionadas(prev => prev.filter(id => id !== idMesa));
     });
 
     return () => {
@@ -60,7 +74,7 @@ function App() {
       );
       setMensaje({ texto: '', tipo: '' });
     } else {
-      setMensaje({ texto: 'La mesa seleccionada no está disponible.', tipo: 'error' });
+      setMensaje({ texto: '⚠ La mesa seleccionada no está disponible.', tipo: 'error' });
     }
   };
 
@@ -75,7 +89,18 @@ function App() {
     return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
   };
 
-  // Procesamiento de Reserva Múltiple
+  // Generar factura para una mesa reservada
+  const generarFacturaParaMesa = async (id_reserva, id_mesa, nombre_cliente, metodo_pago) => {
+    const res = await fetch('http://localhost:3000/api/facturas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_reserva, id_mesa, nombre_cliente, metodo_pago })
+    });
+    if (!res.ok) throw new Error('Error al generar factura');
+    return res.json();
+  };
+
+  // Procesamiento de Reserva Múltiple + Generación de Factura
   const hacerReservaMultiple = async (e) => {
     e.preventDefault();
     if (seleccionadas.length === 0) {
@@ -83,22 +108,20 @@ function App() {
       return;
     }
 
-    const nombre = e.target.nombre_cliente.value;
+    const nombre = e.target.nombre_cliente.value.trim();
+    const metodo_pago = e.target.metodo_pago.value;
+
     const fechaExp = new Date();
     fechaExp.setHours(fechaExp.getHours() + 1);
+    const expiracionFormat = fechaExp.toISOString().slice(0, 19).replace('T', ' ');
 
-    const year = fechaExp.getFullYear();
-    const month = String(fechaExp.getMonth() + 1).padStart(2, '0');
-    const day = String(fechaExp.getDate()).padStart(2, '0');
-    const hours = String(fechaExp.getHours()).padStart(2, '0');
-    const minutes = String(fechaExp.getMinutes()).padStart(2, '0');
-    const seconds = String(fechaExp.getSeconds()).padStart(2, '0');
-    const expiracionFormat = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-
+    setCargando(true);
     let errores = 0;
+    const facturasTotales = [];
 
     for (const idMesa of seleccionadas) {
       try {
+        // 1. Crear reserva
         const res = await fetch('http://localhost:3000/api/reservas', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -109,20 +132,45 @@ function App() {
           })
         });
 
-        if (res.ok) {
+        const reservaData = await res.json();
+
+        if (res.ok && reservaData.success) {
+          // Actualizar estado local inmediatamente
           setMesas(prev => prev.map(m =>
             m.id_mesa === idMesa ? { ...m, estado: 'ocupada', expiracion: expiracionFormat } : m
           ));
+
+          // 2. Generar factura
+          try {
+            const facturaRes = await generarFacturaParaMesa(
+              reservaData.id_reserva,
+              idMesa,
+              nombre,
+              metodo_pago
+            );
+            if (facturaRes.success) {
+              facturasTotales.push(facturaRes.data);
+            }
+          } catch (factErr) {
+            console.error('Error generando factura para mesa', idMesa, factErr);
+          }
         } else {
           errores++;
         }
       } catch (err) {
         errores++;
+        console.error('Error en reserva mesa', idMesa, err);
       }
     }
 
+    setCargando(false);
+
     if (errores === 0) {
-      setMensaje({ texto: `Reserva confirmada para ${seleccionadas.length} mesa(s).`, tipo: 'success' });
+      setMensaje({ texto: `✓ Reserva confirmada para ${seleccionadas.length} mesa(s).`, tipo: 'success' });
+      if (facturasTotales.length > 0) {
+        setFactura(facturasTotales);
+        setMostrarFactura(true);
+      }
       setSeleccionadas([]);
       e.target.reset();
     } else {
@@ -131,23 +179,31 @@ function App() {
   };
 
   const obtenerNumerosSeleccionados = () => {
-    if (seleccionadas.length === 0) return 'Ninguna (Haga clic en el mapa)';
+    if (seleccionadas.length === 0) return 'Haga clic en una mesa del plano';
     const numeros = mesas.filter(m => seleccionadas.includes(m.id_mesa)).map(m => m.numero_mesa);
-    return `Mesas: ${numeros.join(', ')}`;
+    return numeros.join(', ');
   };
 
-  // Separar mesas por zona usando el campo 'zona' de la BD
-  // El plano visual: General (izquierda) · Terraza (centro) · VIP (derecha)
+  const calcularTotalFacturas = () => {
+    if (!factura) return 0;
+    return factura.reduce((sum, f) => sum + parseFloat(f.total_pagado || 0), 0).toFixed(2);
+  };
+
+  // Separar mesas por zona
   const mesasGeneral  = mesas.filter(m => m.zona === 'GENERAL');
   const mesasTerraza  = mesas.filter(m => m.zona === 'TERRAZA');
   const mesasVip      = mesas.filter(m => m.zona === 'VIP');
+
+  // Contadores de estado
+  const totalDisponibles = mesas.filter(m => m.estado === 'disponible').length;
+  const totalOcupadas    = mesas.filter(m => m.estado === 'ocupada').length;
 
   const renderMesa = (mesa) => (
     <div
       key={mesa.id_mesa}
       className={`mesa ${mesa.estado} ${seleccionadas.includes(mesa.id_mesa) ? 'seleccionada' : ''}`}
       onClick={() => handleMesaClick(mesa)}
-      title={mesa.estado === 'ocupada' ? 'Ocupada' : mesa.estado === 'disponible' ? 'Disponible' : ''}
+      title={`Mesa ${mesa.numero_mesa} — ${mesa.estado === 'ocupada' ? 'Ocupada' : 'Disponible'}`}
     >
       <span className="numero-mesa">{mesa.numero_mesa}</span>
       {mesa.estado === 'ocupada' && mesa.expiracion && (
@@ -158,81 +214,88 @@ function App() {
 
   return (
     <div className="App">
-      <h1 className="header-title">
-        E-Restaurante Suite <span>● Sistema Activo</span>
-      </h1>
+      {/* ── HEADER ── */}
+      <header className="header">
+        <div className="header-inner">
+          <div className="header-brand">
+            <span className="header-icon">🍽</span>
+            <h1 className="header-title">E-Restaurante Suite</h1>
+          </div>
+          <div className="header-status">
+            <span className="status-dot"></span>
+            <span className="status-text">Sistema Activo</span>
+            <span className="header-clock">
+              {horaActual.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          </div>
+        </div>
+      </header>
 
+      {/* ── STATS BAR ── */}
+      <div className="stats-bar">
+        <div className="stat-chip available">
+          <span className="stat-dot"></span>
+          <span>{totalDisponibles} Disponibles</span>
+        </div>
+        <div className="stat-chip occupied">
+          <span className="stat-dot"></span>
+          <span>{totalOcupadas} Reservadas</span>
+        </div>
+        <div className="stat-chip total">
+          <span>{mesas.length} Mesas totales</span>
+        </div>
+      </div>
+
+      {/* ── DASHBOARD: Plano Izquierda | Form Derecha ── */}
       <div className="dashboard">
-        {/* Panel Izquierdo: Configuración de Reserva */}
-        <aside className="panel-reserva">
-          <h2>Gestión de Reserva</h2>
-          <form onSubmit={hacerReservaMultiple}>
-            <div className="input-group">
-              <label>Selección Actual</label>
-              <div className="mesa-seleccionada-box">
-                {obtenerNumerosSeleccionados()}
-              </div>
+
+        {/* ── PANEL IZQUIERDO: PLANO ── */}
+        <section className="panel-plano">
+          {/* Label de Estado ENCIMA del plano */}
+          <div className="plano-estado-bar">
+            <div className="estado-label-group">
+              <span className="estado-label-dot disponible-dot"></span>
+              <span className="estado-label-text">Disponible</span>
             </div>
-
-            <div className="input-group">
-              <label>Nombre del Titular</label>
-              <input type="text" name="nombre_cliente" required placeholder="Ej: Sr. Andrés Mendoza" />
+            <div className="estado-label-group">
+              <span className="estado-label-dot ocupada-dot"></span>
+              <span className="estado-label-text">Reservada</span>
             </div>
-
-            <button type="submit" className="btn-oro" disabled={seleccionadas.length === 0}>
-              Confirmar Reserva
-            </button>
-          </form>
-
-          {mensaje.texto && (
-            <p style={{
-              marginTop: '20px',
-              color: mensaje.tipo === 'success' ? 'var(--success)' : 'var(--danger)',
-              fontWeight: '600',
-              textAlign: 'center'
-            }}>
-              {mensaje.texto}
-            </p>
-          )}
-
-          {/* Leyenda */}
-          <div className="leyenda">
-            <h3>Estado</h3>
-            <div className="leyenda-items-row">
-              <div className="leyenda-item"><span className="leyenda-dot disponible-dot"></span>Disponible</div>
-              <div className="leyenda-item"><span className="leyenda-dot ocupada-dot"></span>Reservada</div>
+            <div className="estado-label-group">
+              <span className="estado-label-dot seleccionada-dot"></span>
+              <span className="estado-label-text">Seleccionada</span>
             </div>
           </div>
-        </aside>
 
-        {/* Panel Derecho: Mapa con plano real */}
-        <section className="mapa-mesas">
-        
+          {/* Zonas del plano */}
+          <div className="zonas-header">
+            <div className="zona-tag general-tag">🪑 General (C)</div>
+            <div className="zona-tag terraza-tag">🌿 Terraza (B)</div>
+            <div className="zona-tag vip-tag">⭐ VIP (A)</div>
+          </div>
 
           <div className="plano-container">
-            {/* Imagen de fondo del plano */}
             <img
               src="/plano_restaurante.jpg"
               alt="Plano del restaurante"
               className="plano-img"
             />
 
-            {/* Zona GENERAL — izquierda del plano */}
+            {/* Zona GENERAL */}
             <div className="zona-overlay zona-general">
-             
               <div className="zona-grid">
                 {mesasGeneral.map(renderMesa)}
               </div>
             </div>
 
-            {/* Zona TERRAZA — centro del plano */}
+            {/* Zona TERRAZA */}
             <div className="zona-overlay zona-terraza">
               <div className="zona-grid">
                 {mesasTerraza.map(renderMesa)}
               </div>
             </div>
 
-            {/* Zona VIP — derecha del plano */}
+            {/* Zona VIP */}
             <div className="zona-overlay zona-vip">
               <div className="zona-grid">
                 {mesasVip.map(renderMesa)}
@@ -240,7 +303,144 @@ function App() {
             </div>
           </div>
         </section>
+
+        {/* ── PANEL DERECHO: GESTIÓN DE RESERVA ── */}
+        <aside className="panel-reserva">
+          <div className="panel-reserva-header">
+            <h2>Gestión de Reserva</h2>
+            <p className="panel-subtitle">Complete los datos y seleccione mesas en el plano</p>
+          </div>
+
+          <form onSubmit={hacerReservaMultiple} className="reserva-form">
+
+            {/* Mesas seleccionadas */}
+            <div className="input-group">
+              <label>Mesas Seleccionadas</label>
+              <div className={`mesa-seleccionada-box ${seleccionadas.length > 0 ? 'activa' : ''}`}>
+                {seleccionadas.length > 0
+                  ? <><span className="sel-badge">{seleccionadas.length}</span> {obtenerNumerosSeleccionados()}</>
+                  : <span className="sel-hint">Haga clic en una mesa del plano</span>
+                }
+              </div>
+            </div>
+
+            {/* Nombre del cliente */}
+            <div className="input-group">
+              <label>Nombre del Titular</label>
+              <input
+                type="text"
+                name="nombre_cliente"
+                required
+                placeholder="Ej: Sr. Andrés Mendoza"
+              />
+            </div>
+
+            {/* Método de pago */}
+            <div className="input-group">
+              <label>Método de Pago</label>
+              <select name="metodo_pago" required>
+                <option value="efectivo">💵 Efectivo</option>
+                <option value="tarjeta">💳 Tarjeta</option>
+                <option value="transferencia">🏦 Transferencia</option>
+              </select>
+            </div>
+
+            {/* Precio estimado */}
+            {seleccionadas.length > 0 && (
+              <div className="precio-estimado">
+                <span className="precio-label">Estimado:</span>
+                <span className="precio-valor">
+                  ${mesas
+                      .filter(m => seleccionadas.includes(m.id_mesa))
+                      .reduce((sum, m) => sum + parseFloat(m.precio_base || 0), 0)
+                      .toFixed(2)} + IVA 15%
+                </span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn-oro"
+              disabled={seleccionadas.length === 0 || cargando}
+            >
+              {cargando ? (
+                <><span className="spinner"></span> Procesando...</>
+              ) : (
+                '✓ Confirmar Reserva'
+              )}
+            </button>
+          </form>
+
+          {/* Mensaje de estado */}
+          {mensaje.texto && (
+            <div className={`mensaje-feedback ${mensaje.tipo}`}>
+              {mensaje.texto}
+            </div>
+          )}
+
+          {/* Botón ver última factura */}
+          {factura && !mostrarFactura && (
+            <button className="btn-factura-link" onClick={() => setMostrarFactura(true)}>
+              📄 Ver última factura generada
+            </button>
+          )}
+        </aside>
       </div>
+
+      {/* ── MODAL FACTURA ── */}
+      {mostrarFactura && factura && (
+        <div className="modal-overlay" onClick={() => setMostrarFactura(false)}>
+          <div className="modal-factura" onClick={e => e.stopPropagation()}>
+            <div className="factura-header">
+              <div>
+                <h3>🧾 Factura de Reserva</h3>
+                <p className="factura-fecha">{new Date().toLocaleDateString('es-EC', { dateStyle: 'long' })}</p>
+              </div>
+              <button className="btn-cerrar" onClick={() => setMostrarFactura(false)}>✕</button>
+            </div>
+
+            <div className="factura-body">
+              {factura.map((f, i) => (
+                <div key={i} className="factura-item">
+                  <div className="factura-row">
+                    <span>Mesa</span>
+                    <span className="factura-val">{f.detalle_mesa}</span>
+                  </div>
+                  <div className="factura-row">
+                    <span>Cliente</span>
+                    <span className="factura-val">{f.nombre_cliente}</span>
+                  </div>
+                  <div className="factura-row">
+                    <span>Subtotal</span>
+                    <span className="factura-val">${parseFloat(f.subtotal).toFixed(2)}</span>
+                  </div>
+                  <div className="factura-row">
+                    <span>IVA (15%)</span>
+                    <span className="factura-val">${parseFloat(f.impuestos).toFixed(2)}</span>
+                  </div>
+                  <div className="factura-row factura-total">
+                    <span>Total</span>
+                    <span className="factura-val">${parseFloat(f.total_pagado).toFixed(2)}</span>
+                  </div>
+                  {i < factura.length - 1 && <hr className="factura-divider" />}
+                </div>
+              ))}
+
+              {factura.length > 1 && (
+                <div className="factura-row factura-gran-total">
+                  <span>GRAN TOTAL ({factura.length} mesas)</span>
+                  <span>${calcularTotalFacturas()}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="factura-footer">
+              <span className="factura-metodo">💳 {factura[0]?.metodo_pago?.toUpperCase()}</span>
+              <button className="btn-imprimir" onClick={() => window.print()}>🖨 Imprimir</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

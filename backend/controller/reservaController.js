@@ -19,12 +19,14 @@ exports.crearReserva = async (req, res) => {
         await Evento.registrar('CREACION_RESERVA', 'HTTP', `Reserva ${id_reserva} creada para ${nombre_cliente} en mesa ${id_mesa}`);
 
         // 4. AVISAR A TODA LA RED EN TIEMPO REAL (El Dashboard y React se actualizarán)
-        broadcast('mesa-ocupada', { id_mesa: parseInt(id_mesa) });
+        broadcast('mesa-ocupada', { id_mesa: parseInt(id_mesa), id_reserva, expiracion });
 
         res.status(201).json({ 
             success: true, 
             message: "Reserva creada exitosamente", 
-            id_reserva 
+            id_reserva,
+            id_mesa,
+            expiracion
         });
     } catch (error) {
         res.status(500).json({ success: false, message: "Error al procesar reserva", error: error.message });

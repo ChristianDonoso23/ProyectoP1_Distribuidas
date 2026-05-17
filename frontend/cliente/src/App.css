@@ -1,0 +1,220 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --bg-main: #f4f1ea;
+  --bg-panel: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #5a5a5a;
+  --accent-gold: #b8860b;
+  --accent-gold-hover: #9b7109;
+  --border-light: #e0e0e0;
+  --table-free: #ffffff;
+  --table-occupied: #2c3e50;
+  --table-selected-bg: #fcf8f2;
+  --danger: #d9534f;
+  --success: #5cb85c;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.App {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.header-title {
+  text-align: center;
+  font-family: 'Playfair Display', serif;
+  font-size: 2.8rem;
+  color: var(--text-primary);
+  margin-bottom: 40px;
+  border-bottom: 2px solid var(--accent-gold);
+  padding-bottom: 15px;
+  display: inline-block;
+  width: 100%;
+}
+
+.header-title span {
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  color: var(--success);
+  vertical-align: middle;
+  margin-left: 15px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.dashboard {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+/* Panel de Reservas */
+.panel-reserva {
+  background: var(--bg-panel);
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  border-top: 4px solid var(--accent-gold);
+}
+
+.panel-reserva h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  margin-top: 0;
+  margin-bottom: 25px;
+  color: var(--text-primary);
+}
+
+.input-group {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.input-group label {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.input-group input {
+  padding: 12px 15px;
+  background: #fafafa;
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  border-radius: 4px;
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+  background: #ffffff;
+}
+
+.mesa-seleccionada-box {
+  padding: 15px;
+  background: var(--table-selected-bg);
+  border: 1px dashed var(--accent-gold);
+  color: var(--accent-gold);
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.btn-oro {
+  width: 100%;
+  padding: 15px;
+  background: var(--accent-gold);
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: background 0.3s;
+  margin-top: 10px;
+}
+
+.btn-oro:hover:not(:disabled) {
+  background: var(--accent-gold-hover);
+}
+
+.btn-oro:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Mapa de Mesas */
+.mapa-mesas {
+  background: var(--bg-panel);
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.mapa-mesas h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  margin-top: 0;
+  margin-bottom: 25px;
+  color: var(--text-primary);
+}
+
+.grid-mesas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 20px;
+}
+
+.mesa {
+  height: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.numero-mesa {
+  font-weight: 600;
+  font-size: 1.3rem;
+}
+
+/* Estados de las Mesas */
+.mesa.disponible {
+  background: var(--table-free);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+}
+
+.mesa.disponible:hover {
+  border-color: var(--accent-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(184, 134, 11, 0.1);
+}
+
+.mesa.ocupada {
+  background: var(--table-occupied);
+  border: 1px solid var(--table-occupied);
+  color: #ffffff;
+  cursor: not-allowed;
+}
+
+.mesa.seleccionada {
+  background: var(--table-selected-bg);
+  border: 2px solid var(--accent-gold);
+  color: var(--accent-gold);
+  transform: scale(1.05);
+  box-shadow: 0 5px 15px rgba(184, 134, 11, 0.2);
+}
+
+.timer {
+  font-size: 0.8rem;
+  margin-top: 5px;
+  opacity: 0.9;
+  font-family: 'Inter', monospace;
+  font-weight: 500;
+}

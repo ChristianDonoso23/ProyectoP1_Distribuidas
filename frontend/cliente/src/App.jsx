@@ -33,13 +33,13 @@ function App() {
     cargarMesas();
 
     socket.on('mesa-ocupada', (data) => {
-      setMesas(prev => prev.map(m => 
+      setMesas(prev => prev.map(m =>
         m.id_mesa === parseInt(data.id_mesa) ? { ...m, estado: 'ocupada', expiracion: data.expiracion } : m
       ));
     });
 
     socket.on('mesa-liberada', (data) => {
-      setMesas(prev => prev.map(m => 
+      setMesas(prev => prev.map(m =>
         m.id_mesa === parseInt(data.id_mesa) ? { ...m, estado: 'disponible', expiracion: null } : m
       ));
     });
@@ -53,8 +53,8 @@ function App() {
   // Manejo de Selección Múltiple
   const handleMesaClick = (mesa) => {
     if (mesa.estado === 'disponible') {
-      setSeleccionadas(prev => 
-        prev.includes(mesa.id_mesa) 
+      setSeleccionadas(prev =>
+        prev.includes(mesa.id_mesa)
           ? prev.filter(id => id !== mesa.id_mesa)
           : [...prev, mesa.id_mesa]
       );
@@ -69,9 +69,7 @@ function App() {
     if (!expiracionString) return '';
     const expDate = new Date(expiracionString);
     const diff = expDate - horaActual;
-    
     if (diff <= 0) return '00:00';
-    
     const minutos = Math.floor((diff / 1000 / 60) % 60);
     const segundos = Math.floor((diff / 1000) % 60);
     return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
@@ -86,10 +84,9 @@ function App() {
     }
 
     const nombre = e.target.nombre_cliente.value;
-    
     const fechaExp = new Date();
     fechaExp.setHours(fechaExp.getHours() + 1);
-    
+
     const year = fechaExp.getFullYear();
     const month = String(fechaExp.getMonth() + 1).padStart(2, '0');
     const day = String(fechaExp.getDate()).padStart(2, '0');
@@ -111,15 +108,16 @@ function App() {
             expiracion: expiracionFormat
           })
         });
-        
+
         if (res.ok) {
-          // Optimistic UI Update por si el socket tiene lag
-          setMesas(prev => prev.map(m => m.id_mesa === idMesa ? { ...m, estado: 'ocupada', expiracion: expiracionFormat } : m));
+          setMesas(prev => prev.map(m =>
+            m.id_mesa === idMesa ? { ...m, estado: 'ocupada', expiracion: expiracionFormat } : m
+          ));
         } else {
           errores++;
         }
-      } catch (err) { 
-        errores++; 
+      } catch (err) {
+        errores++;
       }
     }
 
@@ -132,19 +130,38 @@ function App() {
     }
   };
 
-  // Helper para mostrar los números de mesa seleccionados en la UI
   const obtenerNumerosSeleccionados = () => {
     if (seleccionadas.length === 0) return 'Ninguna (Haga clic en el mapa)';
     const numeros = mesas.filter(m => seleccionadas.includes(m.id_mesa)).map(m => m.numero_mesa);
     return `Mesas: ${numeros.join(', ')}`;
   };
 
+  // Separar mesas por zona usando el campo 'zona' de la BD
+  // El plano visual: General (izquierda) · Terraza (centro) · VIP (derecha)
+  const mesasGeneral  = mesas.filter(m => m.zona === 'GENERAL');
+  const mesasTerraza  = mesas.filter(m => m.zona === 'TERRAZA');
+  const mesasVip      = mesas.filter(m => m.zona === 'VIP');
+
+  const renderMesa = (mesa) => (
+    <div
+      key={mesa.id_mesa}
+      className={`mesa ${mesa.estado} ${seleccionadas.includes(mesa.id_mesa) ? 'seleccionada' : ''}`}
+      onClick={() => handleMesaClick(mesa)}
+      title={mesa.estado === 'ocupada' ? 'Ocupada' : mesa.estado === 'disponible' ? 'Disponible' : ''}
+    >
+      <span className="numero-mesa">{mesa.numero_mesa}</span>
+      {mesa.estado === 'ocupada' && mesa.expiracion && (
+        <span className="timer">{calcularTiempoRestante(mesa.expiracion)}</span>
+      )}
+    </div>
+  );
+
   return (
     <div className="App">
       <h1 className="header-title">
         E-Restaurante Suite <span>● Sistema Activo</span>
       </h1>
-      
+
       <div className="dashboard">
         {/* Panel Izquierdo: Configuración de Reserva */}
         <aside className="panel-reserva">
@@ -156,45 +173,71 @@ function App() {
                 {obtenerNumerosSeleccionados()}
               </div>
             </div>
-            
+
             <div className="input-group">
               <label>Nombre del Titular</label>
               <input type="text" name="nombre_cliente" required placeholder="Ej: Sr. Andrés Mendoza" />
             </div>
-            
+
             <button type="submit" className="btn-oro" disabled={seleccionadas.length === 0}>
               Confirmar Reserva
             </button>
           </form>
-          
+
           {mensaje.texto && (
-            <p style={{ 
-              marginTop: '20px', 
-              color: mensaje.tipo === 'success' ? 'var(--success)' : 'var(--danger)', 
+            <p style={{
+              marginTop: '20px',
+              color: mensaje.tipo === 'success' ? 'var(--success)' : 'var(--danger)',
               fontWeight: '600',
               textAlign: 'center'
             }}>
               {mensaje.texto}
             </p>
           )}
+
+          {/* Leyenda */}
+          <div className="leyenda">
+            <h3>Estado</h3>
+            <div className="leyenda-items-row">
+              <div className="leyenda-item"><span className="leyenda-dot disponible-dot"></span>Disponible</div>
+              <div className="leyenda-item"><span className="leyenda-dot ocupada-dot"></span>Reservada</div>
+            </div>
+          </div>
         </aside>
 
-        {/* Panel Derecho: Mapa Interactivo */}
+        {/* Panel Derecho: Mapa con plano real */}
         <section className="mapa-mesas">
-          <h2>Plano del Establecimiento</h2>
-          <div className="grid-mesas">
-            {mesas.map((mesa) => (
-              <div 
-                key={mesa.id_mesa} 
-                className={`mesa ${mesa.estado} ${seleccionadas.includes(mesa.id_mesa) ? 'seleccionada' : ''}`}
-                onClick={() => handleMesaClick(mesa)}
-              >
-                <span className="numero-mesa">{mesa.numero_mesa}</span>
-                {mesa.estado === 'ocupada' && mesa.expiracion && (
-                  <span className="timer">{calcularTiempoRestante(mesa.expiracion)}</span>
-                )}
+        
+
+          <div className="plano-container">
+            {/* Imagen de fondo del plano */}
+            <img
+              src="/plano_restaurante.jpg"
+              alt="Plano del restaurante"
+              className="plano-img"
+            />
+
+            {/* Zona GENERAL — izquierda del plano */}
+            <div className="zona-overlay zona-general">
+             
+              <div className="zona-grid">
+                {mesasGeneral.map(renderMesa)}
               </div>
-            ))}
+            </div>
+
+            {/* Zona TERRAZA — centro del plano */}
+            <div className="zona-overlay zona-terraza">
+              <div className="zona-grid">
+                {mesasTerraza.map(renderMesa)}
+              </div>
+            </div>
+
+            {/* Zona VIP — derecha del plano */}
+            <div className="zona-overlay zona-vip">
+              <div className="zona-grid">
+                {mesasVip.map(renderMesa)}
+              </div>
+            </div>
           </div>
         </section>
       </div>

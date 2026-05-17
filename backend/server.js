@@ -3,6 +3,10 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
+
+const http = require('http');
+const { Server } = require('socket.io');
+const { subscribe } = require('./services/websocketService');
 // 1. Importar todas tus rutas
 const mesasRoutes = require('./routes/mesas.routes');
 const reservasRoutes = require('./routes/reservas.routes');
@@ -13,6 +17,13 @@ const requestLogger = require('./middlewares/loggerMiddleware');
 const errorHandler = require('./middlewares/errorMiddleware');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+    }
+});
 
 // Middlewares básicos
 app.use(cors());
@@ -29,6 +40,14 @@ app.use('/api/reservas', reservasRoutes);
 app.use('/api/facturas', facturasRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/eventos', eventosRoutes);
+
+subscribe('mesa-ocupada', (event) => {
+    io.emit('mesa-ocupada', event.payload || event); 
+});
+
+subscribe('mesa-liberada', (event) => {
+    io.emit('mesa-liberada', event.payload || event);
+});
 
 // Ruta base de prueba (solo para saber que el server levantó)
 app.get('/', (req, res) => {
@@ -47,6 +66,6 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Servidor Backend corriendo en el puerto ${PORT}`);
 });

@@ -1,0 +1,403 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --bg-main: #f4f1ea;
+  --bg-panel: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #5a5a5a;
+  --accent-gold: #b8860b;
+  --accent-gold-hover: #9b7109;
+  --border-light: #e0e0e0;
+  --table-free: rgba(255, 255, 255, 0.92);
+  --table-occupied: #2c3e50;
+  --table-selected-bg: #fcf8f2;
+  --danger: #d9534f;
+  --success: #5cb85c;
+
+  /* Zona colores */
+  --zona-general-bg:  rgba(232, 220, 195, 0.30);
+  --zona-terraza-bg:  rgba(180, 220, 190, 0.25);
+  --zona-vip-bg:      rgba(180, 140, 60,  0.20);
+}
+
+/* ─── Reset base ─────────────────────────────── */
+* { box-sizing: border-box; }
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.App {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* ─── Header ──────────────────────────────────── */
+.header-title {
+  text-align: center;
+  font-family: 'Playfair Display', serif;
+  font-size: 2.2rem;
+  color: var(--text-primary);
+  margin: 0 0 20px;
+  border-bottom: 2px solid var(--accent-gold);
+  padding: 20px 32px 14px;
+  display: block;
+  width: 100%;
+}
+
+.header-title span {
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  color: var(--success);
+  vertical-align: middle;
+  margin-left: 15px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ─── Layout principal ────────────────────────── */
+.dashboard {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
+  align-items: start;
+  padding: 0 24px 24px;
+  width: 100%;
+}
+
+/* ─── Panel de Reservas ───────────────────────── */
+.panel-reserva {
+  background: var(--bg-panel);
+  padding: 18px 20px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+  border-top: 4px solid var(--accent-gold);
+  position: sticky;
+  top: 16px;
+}
+
+.panel-reserva h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  margin-top: 0;
+  margin-bottom: 14px;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.input-group {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.input-group label {
+  margin-bottom: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.input-group input {
+  padding: 11px 14px;
+  background: #fafafa;
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  transition: border-color 0.3s;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+  background: #ffffff;
+}
+
+.mesa-seleccionada-box {
+  padding: 12px;
+  background: var(--table-selected-bg);
+  border: 1px dashed var(--accent-gold);
+  color: var(--accent-gold);
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  min-height: 44px;
+}
+
+.btn-oro {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent-gold);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: background 0.3s, transform 0.1s;
+  margin-top: 8px;
+}
+
+.btn-oro:hover:not(:disabled) {
+  background: var(--accent-gold-hover);
+  transform: translateY(-1px);
+}
+
+.btn-oro:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
+/* ─── Leyenda ─────────────────────────────────── */
+.leyenda {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.leyenda h3 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px;
+}
+
+/* Leyenda en fila horizontal */
+.leyenda-items-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.leyenda-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.disponible-dot  { background: #ffffff; border: 1.5px solid #aaa; }
+.ocupada-dot     { background: var(--table-occupied); }
+.seleccionada-dot { background: var(--table-selected-bg); border: 2px solid var(--accent-gold); }
+
+/* ─── Badges de zonas ─────────────────────────── */
+.zonas-info {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.zona-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.general-badge  { background: rgba(210, 190, 150, 0.3); color: #7a5c2a; }
+.terraza-badge  { background: rgba(150, 210, 160, 0.3); color: #2a6b3a; }
+.vip-badge      { background: rgba(210, 170, 60,  0.3); color: #7a5500; }
+
+/* ─── Sección del mapa ────────────────────────── */
+.mapa-mesas {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.mapa-mesas h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+/* ─── Contenedor del plano ────────────────────── */
+.plano-container {
+  position: relative;
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+
+.plano-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ─── Zonas superpuestas ─────────────────────── */
+.zona-overlay {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px 8px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+}
+
+/* GENERAL (C): izquierda */
+.zona-general {
+  left:   20%;
+  top:    28%;
+  width:  28%;
+  height: 68%;
+}
+
+/* TERRAZA (B): centro */
+.zona-terraza {
+  left:   49%;
+  top:    28%;
+  width:  22%;
+  height: 68%;
+}
+
+/* VIP (A): derecha */
+.zona-vip {
+  left:   72%;
+  top:    28%;
+  width:  22%;
+  height: 68%;
+}
+
+/* ─── Etiqueta de zona ────────────────────────── */
+.zona-label {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  margin-bottom: 4px;
+  pointer-events: none;
+}
+
+/* ─── Grid de mesas dentro de zona ───────────── */
+.zona-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  width: 100%;
+  flex: 1;
+  align-content: start;
+}
+
+/* ─── Mesa ────────────────────────────────────── */
+.mesa {
+  height: 36px;
+  max-width: 50px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  padding: 10px;
+  justify-self: center;
+}
+
+.numero-mesa {
+  font-weight: 700;
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+/* ─── Estados ─────────────────────────────────── */
+.mesa.disponible {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1.5px solid rgba(180, 160, 100, 0.5);
+  color: var(--text-primary);
+  backdrop-filter: blur(2px);
+}
+
+.mesa.disponible:hover {
+  border-color: var(--accent-gold);
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 5px 14px rgba(184, 134, 11, 0.25);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.mesa.ocupada {
+  background: var(--table-occupied);
+  border: 1.5px solid #1a2a38;
+  color: #ffffff;
+  cursor: not-allowed;
+}
+
+.mesa.seleccionada {
+  background: var(--table-selected-bg);
+  border: 2px solid var(--accent-gold);
+  color: var(--accent-gold);
+  transform: scale(1.06);
+  box-shadow: 0 5px 14px rgba(184, 134, 11, 0.3);
+}
+
+/* ─── Timer ───────────────────────────────────── */
+.timer {
+  font-size: 0.68rem;
+  margin-top: 2px;
+  opacity: 0.9;
+  font-family: 'Inter', monospace;
+  font-weight: 500;
+  color: #f0c040;
+}
+
+/* ─── Responsive ──────────────────────────────── */
+@media (max-width: 1100px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+    padding: 0 16px 20px;
+  }
+  .panel-reserva {
+    position: static;
+  }
+  .zona-general  { left: 2%;   width: 36%; }
+  .zona-terraza  { left: 39%;  width: 27%; }
+  .zona-vip      { left: 67%;  width: 29%; }
+}
+
+@media (max-width: 700px) {
+  .mesa { height: 40px; }
+  .numero-mesa { font-size: 0.72rem; }
+  .zona-label { font-size: 0.6rem; }
+}

@@ -11,13 +11,26 @@ const Reserva = {
         return result.insertId;
     },
 
-    // Verificar si una mesa ya tiene una reserva activa/confirmada
+    // Verificar si una mesa ya tiene una reserva activa/confirmada (sin contar expiradas)
     checkDisponibilidad: async (id_mesa) => {
         const [rows] = await db.query(
-            'SELECT * FROM reservas WHERE id_mesa = ? AND estado IN ("pendiente", "confirmada")',
+            `SELECT * FROM reservas 
+             WHERE id_mesa = ? 
+               AND estado IN ("pendiente", "confirmada")
+               AND (expiracion IS NULL OR NOW() < expiracion)`,
             [id_mesa]
         );
         return rows.length === 0; // true si está libre
+    },
+
+    // Marcar como "finalizada" todas las reservas expiradas de una mesa
+    limpiarExpiradas: async (id_mesa) => {
+        await db.query(
+            `UPDATE reservas SET estado = "finalizada"
+             WHERE id_mesa = ? AND expiracion IS NOT NULL AND NOW() >= expiracion
+               AND estado IN ("pendiente", "confirmada")`,
+            [id_mesa]
+        );
     },
 
     // Cambiar estado (confirmada, cancelada, finalizada)

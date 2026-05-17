@@ -5,21 +5,29 @@ const { broadcast } = require('../services/websocketService'); // <-- Eslabón p
 exports.crearReserva = async (req, res) => {
     const { id_mesa, nombre_cliente, expiracion } = req.body;
 
+    // Validar que vengan los campos obligatorios
+    if (!id_mesa || !nombre_cliente) {
+        return res.status(400).json({ success: false, message: "Faltan campos requeridos: id_mesa y nombre_cliente" });
+    }
+
     try {
-        // 1. Validar disponibilidad
+        // 1. Limpiar reservas expiradas de esa mesa (para no bloquearla indefinidamente)
+        await Reserva.limpiarExpiradas(id_mesa);
+
+        // 2. Validar disponibilidad (ya excluye expiradas gracias al modelo)
         const disponible = await Reserva.checkDisponibilidad(id_mesa);
         if (!disponible) {
             return res.status(400).json({ success: false, message: "La mesa ya está ocupada o reservada" });
         }
 
-        // 2. Crear reserva
+        // 3. Crear reserva
         const id_reserva = await Reserva.create({ id_mesa, nombre_cliente, expiracion });
 
-        // 3. Registrar evento (Trazabilidad)
+        // 4. Registrar evento (Trazabilidad)
         await Evento.registrar('CREACION_RESERVA', 'HTTP', `Reserva ${id_reserva} creada para ${nombre_cliente} en mesa ${id_mesa}`);
 
-        // 4. AVISAR A TODA LA RED EN TIEMPO REAL (El Dashboard y React se actualizarán)
-        broadcast('mesa-ocupada', { id_mesa: parseInt(id_mesa), id_reserva, expiracion });
+        // 5. AVISAR A TODA LA RED EN TIEMPO REAL
+        broadcast('mesa-ocupada', { id_mesa: parseInt(id_mesa), id_reserva, expiracion, nombre_cliente });
 
         res.status(201).json({ 
             success: true, 

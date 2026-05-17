@@ -6,18 +6,18 @@ exports.generarFactura = async (req, res) => {
     const { id_reserva, id_mesa, nombre_cliente, metodo_pago } = req.body;
 
     try {
-        // Obtener datos de la mesa para el precio
+        // Obtener datos de la mesa para el precio si no envían subtotal
         const mesa = await Mesa.getById(id_mesa);
-        const subtotal = parseFloat(mesa.precio_base);
-        const impuestos = subtotal * 0.15; // Ejemplo 15% IVA
-        const total = subtotal + impuestos;
+        const subtotalCalc = req.body.subtotal ? parseFloat(req.body.subtotal) : parseFloat(mesa.precio_base);
+        const impuestos = subtotalCalc * 0.15; // Ejemplo 15% IVA
+        const total = subtotalCalc + impuestos;
 
         const facturaData = {
             id_reserva,
             id_mesa,
             nombre_cliente,
             detalle_mesa: `Mesa ${mesa.numero_mesa} - Zona ${mesa.zona}`,
-            subtotal,
+            subtotal: subtotalCalc,
             impuestos,
             total_pagado: total,
             metodo_pago

@@ -28,7 +28,6 @@ const io = new Server(server, {
 // Middlewares básicos
 app.use(cors());
 app.use(requestLogger);
-app.use(errorHandler);
 app.use(express.json());
 
 // Servir archivos estáticos del dashboard

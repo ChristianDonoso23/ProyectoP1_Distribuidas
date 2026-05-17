@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Dashboard Administrativo | Restaurante</title>
+	<link rel="stylesheet" href="./css/dashboard.css">
+</head>
+<body>
+	<div class="ambient ambient-a"></div>
+	<div class="ambient ambient-b"></div>
+
+	<main class="dashboard-shell">
+		<header class="hero-panel">
+			<div>
+				<p class="eyebrow">Sistema de Reservación en Tiempo Real</p>
+				<h1>Dashboard administrativo</h1>
+				<p class="hero-copy">Monitoreo operativo de mesas, facturación, tráfico TCP/UDP y actividad reciente del restaurante.</p>
+			</div>
+
+			<div class="hero-metrics">
+				<div class="status-pill" id="connection-status">Sincronizando datos...</div>
+				<div class="clock-card">
+					<span>Última actualización</span>
+					<strong id="live-clock">--:--:--</strong>
+				</div>
+				<button class="refresh-button" id="refresh-dashboard" type="button">Actualizar</button>
+			</div>
+		</header>
+
+		<section class="kpi-grid" id="kpi-grid"></section>
+
+		<section class="content-grid">
+			<article class="panel panel-large">
+				<div class="panel-head">
+					<div>
+						<p class="panel-kicker">Estado operativo</p>
+						<h2>Mesas y ocupación</h2>
+					</div>
+					<span class="panel-badge" id="occupancy-badge">Cargando...</span>
+				</div>
+				<div id="status-chart" class="chart-stack"></div>
+			</article>
+
+			<article class="panel panel-large">
+				<div class="panel-head">
+					<div>
+						<p class="panel-kicker">Transporte distribuido</p>
+						<h2>Actividad por protocolo</h2>
+					</div>
+					<span class="panel-badge muted" id="protocol-badge">Sin datos</span>
+				</div>
+				<div id="protocol-chart" class="chart-stack"></div>
+			</article>
+		</section>
+
+		<section class="content-grid content-grid-bottom">
+			<article class="panel panel-feed">
+				<div class="panel-head">
+					<div>
+						<p class="panel-kicker">Tiempo real</p>
+						<h2>Actividad reciente</h2>
+					</div>
+					<span class="panel-badge" id="last-sync">Esperando actualización</span>
+				</div>
+				<div id="activity-feed" class="activity-feed"></div>
+			</article>
+
+			<article class="panel panel-logs">
+				<div class="panel-head">
+					<div>
+						<p class="panel-kicker">Auditoría</p>
+						<h2>Logs TCP y UDP</h2>
+					</div>
+				</div>
+				<div class="log-columns">
+					<section>
+						<h3>TCP</h3>
+						<div id="tcp-log-list" class="log-list"></div>
+					</section>
+					<section>
+						<h3>UDP</h3>
+						<div id="udp-log-list" class="log-list"></div>
+					</section>
+				</div>
+			</article>
+		</section>
+	</main>
+
+	<script src="./js/metrics.js" defer></script>
+	<script src="./js/charts.js" defer></script>
+	<script src="./js/eventsViewer.js" defer></script>
+	<script src="./js/dashboardSocket.js" defer></script>
+</body>
+</html>

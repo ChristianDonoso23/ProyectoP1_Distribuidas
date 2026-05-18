@@ -2,11 +2,10 @@ const Evento = require('../models/Evento');
 
 exports.getEventos = async (req, res) => {
     try {
-        // Obtener fecha del query string (ej: ?date=2025-05-18) o usar hoy
+        // Obtener fecha del query string
         const dateParam = req.query.date;
         const targetDate = dateParam ? `'${dateParam}'` : 'CURDATE()';
         
-        // Obtener los últimos 100 eventos del día especificado
         const db = require('../config/db');
         const [eventos] = await db.query(`SELECT * FROM eventos WHERE DATE(fecha_evento) = ${targetDate} ORDER BY fecha_evento DESC LIMIT 100`);
         

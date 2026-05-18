@@ -65,9 +65,6 @@ exports.finalizarReserva = async (req, res) => {
             return res.status(403).json({ success: false, message: 'La reserva pertenece a otro cliente' });
         }
         
-        // Primero necesitamos saber qué mesa era para liberar el color en React
-        // Como tu modelo Reserva no tiene getById, asumimos que el body trae el id_mesa (o lo adaptas luego)
-        // Por ahora, solo cambiamos el estado.
         await Reserva.updateEstado(id, 'finalizada');
         await Evento.registrar('FINALIZAR_RESERVA', 'HTTP', `Reserva ${id} marcada como finalizada`);
         
@@ -82,7 +79,6 @@ exports.finalizarReserva = async (req, res) => {
     }
 };
 
-// NUEVO: Obtener reservas pendientes de pago para el dashboard admin
 exports.obtenerReservasPendientes = async (req, res) => {
     try {
         const reservas = await Reserva.getByEstado('pendiente');

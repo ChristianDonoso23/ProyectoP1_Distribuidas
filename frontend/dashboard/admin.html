@@ -58,6 +58,17 @@
 			<article class="panel panel-feed">
 				<div class="panel-head">
 					<div>
+						<p class="panel-kicker">Gestión de pagos</p>
+						<h2>Reservas Pendientes de Confirmación</h2>
+					</div>
+					<span class="panel-badge" id="pending-badge">0 pendientes</span>
+				</div>
+				<div id="pending-reservas-list" class="pending-list"></div>
+			</article>
+
+			<article class="panel panel-feed">
+				<div class="panel-head">
+					<div>
 						<p class="panel-kicker">Tiempo real</p>
 						<h2>Actividad reciente</h2>
 					</div>
@@ -91,5 +102,6 @@
 	<script src="./js/charts.js" defer></script>
 	<script src="./js/eventsViewer.js" defer></script>
 	<script src="./js/dashboardSocket.js" defer></script>
+	<script src="./js/pendingReservas.js" defer></script>
 </body>
 </html>

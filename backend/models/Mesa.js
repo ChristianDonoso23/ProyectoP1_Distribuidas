@@ -5,7 +5,11 @@ const Mesa = {
     getAll: async () => {
         const query = `
             SELECT m.*, 
-            IF(r.id_reserva IS NOT NULL, 'ocupada', 'disponible') AS estado
+            IF(r.id_reserva IS NOT NULL, 'ocupada', 'disponible') AS estado,
+            r.id_reserva,
+            r.cliente_id,
+            r.nombre_cliente,
+            r.expiracion
             FROM mesas m
             LEFT JOIN reservas r ON m.id_mesa = r.id_mesa 
             AND r.estado IN ('pendiente', 'confirmada')
@@ -20,7 +24,11 @@ const Mesa = {
     getById: async (id) => {
         const query = `
             SELECT m.*, 
-            IF(r.id_reserva IS NOT NULL, 'ocupada', 'disponible') AS estado
+            IF(r.id_reserva IS NOT NULL, 'ocupada', 'disponible') AS estado,
+            r.id_reserva,
+            r.cliente_id,
+            r.nombre_cliente,
+            r.expiracion
             FROM mesas m
             LEFT JOIN reservas r ON m.id_mesa = r.id_mesa 
             AND r.estado IN ('pendiente', 'confirmada')
@@ -35,7 +43,11 @@ const Mesa = {
     getByZona: async (zona) => {
         const query = `
             SELECT m.*, 
-                IF(r.id_reserva IS NOT NULL, 'ocupada', 'disponible') AS estado
+                IF(r.id_reserva IS NOT NULL, 'ocupada', 'disponible') AS estado,
+                r.id_reserva,
+                r.cliente_id,
+                r.nombre_cliente,
+                r.expiracion
             FROM mesas m
             LEFT JOIN reservas r ON m.id_mesa = r.id_mesa 
             AND r.estado IN ('pendiente', 'confirmada')

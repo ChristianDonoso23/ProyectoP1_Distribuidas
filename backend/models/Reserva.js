@@ -3,12 +3,21 @@ const db = require('../config/db');
 const Reserva = {
     // Crear una nueva reserva
     create: async (reservaData) => {
-        const { id_mesa, nombre_cliente, expiracion } = reservaData;
+        const { id_mesa, cliente_id, nombre_cliente, expiracion } = reservaData;
         const [result] = await db.query(
-            'INSERT INTO reservas (id_mesa, nombre_cliente, expiracion, estado) VALUES (?, ?, ?, "pendiente")',
-            [id_mesa, nombre_cliente, expiracion]
+            'INSERT INTO reservas (id_mesa, cliente_id, nombre_cliente, expiracion, estado) VALUES (?, ?, ?, ?, "pendiente")',
+            [id_mesa, cliente_id, nombre_cliente, expiracion]
         );
         return result.insertId;
+    },
+
+    // Obtener una reserva por su ID
+    getById: async (id_reserva) => {
+        const [rows] = await db.query(
+            'SELECT * FROM reservas WHERE id_reserva = ?',
+            [id_reserva]
+        );
+        return rows[0] || null;
     },
 
     // Verificar si una mesa ya tiene una reserva activa/confirmada (sin contar expiradas)
@@ -40,6 +49,19 @@ const Reserva = {
             [nuevoEstado, id_reserva]
         );
         return result.affectedRows > 0;
+    },
+
+    // Obtener todas las reservas con un estado específico
+    getByEstado: async (estado) => {
+        const [rows] = await db.query(
+            `SELECT r.*, m.numero_mesa, m.zona 
+             FROM reservas r
+             LEFT JOIN mesas m ON r.id_mesa = m.id_mesa
+             WHERE r.estado = ?
+             ORDER BY r.fecha_reserva DESC`,
+            [estado]
+        );
+        return rows;
     }
 };
 

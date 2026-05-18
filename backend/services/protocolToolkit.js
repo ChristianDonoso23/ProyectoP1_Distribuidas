@@ -10,9 +10,12 @@ const DEFAULT_UDP_PORT = Number(process.env.UDP_PORT || 4001);
 const PROTOCOLS = Object.freeze({
     TCP: 'TCP',
     UDP: 'UDP',
-    SOCKET: 'SOCKET',
-    SYSTEM: 'SYSTEM',
-    FACTURA: 'FACTURA'
+    // Persistir como 'WebSocket' para encajar con el ENUM 'protocolo' en la BD
+    SOCKET: 'WebSocket',
+    // Eventos de sistema/latido se marcan como 'HTTP' para mantener compatibilidad
+    SYSTEM: 'HTTP',
+    // Si se mapea facturación a un valor persistible, usar 'MYSQL'
+    FACTURA: 'MYSQL'
 });
 
 const NORMALIZED_EVENTS = Object.freeze({

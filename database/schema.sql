@@ -66,6 +66,10 @@ CREATE TABLE reservas (
 
     
 
+    cliente_id VARCHAR(100) NOT NULL,
+
+    
+
     nombre_cliente VARCHAR(100) NOT NULL,
 
     
@@ -151,6 +155,19 @@ CREATE TABLE sesiones (
 -- TABLA: FACTURAS
 
 -- Registro histórico de pagos
+
+-- =========================================================
+-- TABLA: FACTURA_RESERVAS
+-- Relaciona facturas con las reservas incluidas en cada factura
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS factura_reservas (
+    id_factura INT NOT NULL,
+    id_reserva INT NOT NULL,
+    PRIMARY KEY (id_factura, id_reserva),
+    FOREIGN KEY (id_factura) REFERENCES facturas(id_factura) ON DELETE CASCADE,
+    FOREIGN KEY (id_reserva) REFERENCES reservas(id_reserva) ON DELETE CASCADE
+);
 
 -- =========================================================
 

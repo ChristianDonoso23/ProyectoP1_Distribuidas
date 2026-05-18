@@ -24,9 +24,10 @@
 		}
 	}
 
-	async function fetchEventos() {
+	async function fetchEventos(date) {
 		try {
-			const res = await fetch(`${API}/eventos`);
+			const url = date ? `${API}/eventos?date=${date}` : `${API}/eventos`;
+			const res = await fetch(url);
 			if (!res.ok) throw new Error('Error');
 			const data = await res.json();
 			return data.data || [];
@@ -49,7 +50,7 @@
 	async function loadState(date) {
 		const summary = await fetchDashboard(date);
 		const mesas = await fetchMesas();
-		const eventos = await fetchEventos();
+		const eventos = await fetchEventos(date);
 		return {
 			summary,
 			mesas,

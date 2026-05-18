@@ -266,6 +266,11 @@ h1 {
 	min-height: 280px;
 }
 
+.panel-full-width {
+	grid-column: 1 / -1;
+	min-height: 280px;
+}
+
 .panel-head {
 	display: flex;
 	justify-content: space-between;

@@ -61,7 +61,10 @@
 						<p class="panel-kicker">Gestión de pagos</p>
 						<h2>Reservas Pendientes de Confirmación</h2>
 					</div>
-					<span class="panel-badge" id="pending-badge">0 pendientes</span>
+					<div class="panel-actions">
+						<span class="panel-badge" id="pending-badge">0 pendientes</span>
+						<button class="action-button" id="release-all-tables" type="button">Liberar todas las mesas</button>
+					</div>
 				</div>
 				<div id="pending-reservas-list" class="pending-list"></div>
 			</article>
@@ -77,24 +80,6 @@
 				<div id="activity-feed" class="activity-feed"></div>
 			</article>
 
-			<article class="panel panel-logs">
-				<div class="panel-head">
-					<div>
-						<p class="panel-kicker">Auditoría</p>
-						<h2>Logs TCP y UDP</h2>
-					</div>
-				</div>
-				<div class="log-columns">
-					<section>
-						<h3>TCP</h3>
-						<div id="tcp-log-list" class="log-list"></div>
-					</section>
-					<section>
-						<h3>UDP</h3>
-						<div id="udp-log-list" class="log-list"></div>
-					</section>
-				</div>
-			</article>
 		</section>
 	</main>
 

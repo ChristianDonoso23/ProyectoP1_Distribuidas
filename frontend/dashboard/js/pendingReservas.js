@@ -2,6 +2,43 @@
 
 const API_BASE = 'http://localhost:3000/api';
 
+async function liberarTodasLasMesas() {
+    const button = document.getElementById('release-all-tables');
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = 'Liberando...';
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/reservas/admin/liberar-todas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'No se pudieron liberar las mesas');
+        }
+
+        alert(data.message || 'Mesas liberadas correctamente');
+
+        if (window.DashboardSocket && typeof window.DashboardSocket.refresh === 'function') {
+            window.DashboardSocket.refresh();
+        } else {
+            cargarReservasPendientes();
+        }
+    } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = 'Liberar todas las mesas';
+        }
+    }
+}
+
 // Cargar reservas pendientes al iniciar
 async function cargarReservasPendientes() {
     try {
@@ -108,6 +145,8 @@ async function confirmarPago(e) {
 // Cargar reservas pendientes cuando la página carga
 document.addEventListener('DOMContentLoaded', () => {
     cargarReservasPendientes();
+
+    document.getElementById('release-all-tables')?.addEventListener('click', liberarTodasLasMesas);
     
     // Actualizar cada 10 segundos
     setInterval(cargarReservasPendientes, 10000);

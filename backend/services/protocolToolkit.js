@@ -3,13 +3,9 @@ const path = require('path');
 
 const LOG_PATH = path.resolve(__dirname, '..', 'logs', 'runtime.log');
 
-const DEFAULT_HOST = process.env.PROTOCOL_HOST || '0.0.0.0';
-const DEFAULT_TCP_PORT = Number(process.env.TCP_PORT || 4000);
-const DEFAULT_UDP_PORT = Number(process.env.UDP_PORT || 4001);
+// Host/port defaults for legacy TCP/UDP helpers removed — not used by server
 
 const PROTOCOLS = Object.freeze({
-    TCP: 'TCP',
-    UDP: 'UDP',
     // Persistir como 'WebSocket' para encajar con el ENUM 'protocolo' en la BD
     SOCKET: 'WebSocket',
     // Eventos de sistema/latido se marcan como 'HTTP' para mantener compatibilidad
@@ -26,8 +22,7 @@ const NORMALIZED_EVENTS = Object.freeze({
     TICKET_IMPRESO: 'ticket-impreso',
     NUEVA_ACTIVIDAD: 'nueva-actividad',
     ACTIVIDAD_GENERAL: 'actividad-general',
-    CONEXION_TCP: 'conexion-tcp',
-    CONEXION_UDP: 'conexion-udp',
+    // CONEXION_TCP/UDP removed — no active TCP/UDP sources in backend
     LATIDO_METRICAS: 'latido-metricas'
 });
 
@@ -94,11 +89,7 @@ function normalizeEventType(eventType) {
         'nueva-actividad': NORMALIZED_EVENTS.NUEVA_ACTIVIDAD,
         'nueva actividad': NORMALIZED_EVENTS.NUEVA_ACTIVIDAD,
         'latido-metricas': NORMALIZED_EVENTS.LATIDO_METRICAS,
-        'latido metricas': NORMALIZED_EVENTS.LATIDO_METRICAS,
-        'conexion-tcp': NORMALIZED_EVENTS.CONEXION_TCP,
-        'conexion tcp': NORMALIZED_EVENTS.CONEXION_TCP,
-        'conexion-udp': NORMALIZED_EVENTS.CONEXION_UDP,
-        'conexion udp': NORMALIZED_EVENTS.CONEXION_UDP
+        'latido metricas': NORMALIZED_EVENTS.LATIDO_METRICAS
     };
 
     return aliases[normalized] || normalized || NORMALIZED_EVENTS.ACTIVIDAD_GENERAL;
@@ -150,9 +141,6 @@ function describeSensorEvent(payload = {}, fallbackType = NORMALIZED_EVENTS.NUEV
 }
 
 module.exports = {
-    DEFAULT_HOST,
-    DEFAULT_TCP_PORT,
-    DEFAULT_UDP_PORT,
     LOG_PATH,
     PROTOCOLS,
     NORMALIZED_EVENTS,

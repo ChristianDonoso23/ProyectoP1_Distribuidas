@@ -92,3 +92,36 @@ exports.obtenerReservasPendientes = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+exports.liberarTodasLasMesas = async (req, res) => {
+    try {
+        const pendientes = await Reserva.getByEstado('pendiente');
+        const confirmadas = await Reserva.getByEstado('confirmada');
+        const reservasActivas = [...pendientes, ...confirmadas];
+        const mesasLiberadas = new Set();
+
+        for (const reserva of reservasActivas) {
+            await Reserva.updateEstado(reserva.id_reserva, 'finalizada');
+            mesasLiberadas.add(parseInt(reserva.id_mesa));
+        }
+
+        for (const idMesa of mesasLiberadas) {
+            broadcast('mesa-liberada', { id_mesa: idMesa, motivo: 'liberacion-masiva' });
+        }
+
+        await Evento.registrar(
+            'LIBERAR_MESAS',
+            'HTTP',
+            `Liberación masiva ejecutada sobre ${mesasLiberadas.size} mesa(s)`
+        );
+
+        res.json({
+            success: true,
+            message: `Se liberaron ${mesasLiberadas.size} mesa(s) correctamente`,
+            mesas_liberadas: Array.from(mesasLiberadas)
+        });
+    } catch (error) {
+        console.error('[reservaController.liberarTodasLasMesas] Error:', error);
+        res.status(500).json({ success: false, message: 'No se pudieron liberar las mesas', error: error.message });
+    }
+};

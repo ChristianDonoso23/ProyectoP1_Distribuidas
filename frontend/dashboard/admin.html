@@ -23,15 +23,17 @@
 				<div class="clock-card">
 					<span>Última actualización</span>
 					<strong id="live-clock">--:--:--</strong>
-				</div>
-				<button class="refresh-button" id="refresh-dashboard" type="button">Actualizar</button>
+				</div>			<div class="date-filter-group">
+				<input type="date" id="date-filter" class="date-input" title="Selecciona una fecha para ver datos de ese día">
+				<button class="filter-button" id="today-button" type="button">Hoy</button>
+			</div>				<button class="refresh-button" id="refresh-dashboard" type="button">Actualizar</button>
 			</div>
 		</header>
 
 		<section class="kpi-grid" id="kpi-grid"></section>
 
 		<section class="content-grid">
-			<article class="panel panel-large">
+			<article class="panel panel-full-width">
 				<div class="panel-head">
 					<div>
 						<p class="panel-kicker">Estado operativo</p>
@@ -40,17 +42,6 @@
 					<span class="panel-badge" id="occupancy-badge">Cargando...</span>
 				</div>
 				<div id="status-chart" class="chart-stack"></div>
-			</article>
-
-			<article class="panel panel-large">
-				<div class="panel-head">
-					<div>
-						<p class="panel-kicker">Transporte distribuido</p>
-						<h2>Actividad por protocolo</h2>
-					</div>
-					<span class="panel-badge muted" id="protocol-badge">Sin datos</span>
-				</div>
-				<div id="protocol-chart" class="chart-stack"></div>
 			</article>
 		</section>
 
@@ -61,7 +52,10 @@
 						<p class="panel-kicker">Gestión de pagos</p>
 						<h2>Reservas Pendientes de Confirmación</h2>
 					</div>
-					<span class="panel-badge" id="pending-badge">0 pendientes</span>
+					<div class="panel-actions">
+						<span class="panel-badge" id="pending-badge">0 pendientes</span>
+						<button class="action-button" id="release-all-tables" type="button">Liberar todas las mesas</button>
+					</div>
 				</div>
 				<div id="pending-reservas-list" class="pending-list"></div>
 			</article>
@@ -77,24 +71,6 @@
 				<div id="activity-feed" class="activity-feed"></div>
 			</article>
 
-			<article class="panel panel-logs">
-				<div class="panel-head">
-					<div>
-						<p class="panel-kicker">Auditoría</p>
-						<h2>Logs TCP y UDP</h2>
-					</div>
-				</div>
-				<div class="log-columns">
-					<section>
-						<h3>TCP</h3>
-						<div id="tcp-log-list" class="log-list"></div>
-					</section>
-					<section>
-						<h3>UDP</h3>
-						<div id="udp-log-list" class="log-list"></div>
-					</section>
-				</div>
-			</article>
 		</section>
 	</main>
 

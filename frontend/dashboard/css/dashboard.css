@@ -171,6 +171,53 @@ h1 {
 	box-shadow: 0 12px 24px rgba(242, 185, 75, 0.24);
 }
 
+.date-filter-group {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+.date-input {
+	appearance: none;
+	border: 1px solid var(--line);
+	border-radius: 18px;
+	background: rgba(6, 10, 18, 0.46);
+	padding: 0.9rem 1rem;
+	color: var(--text);
+	font-family: inherit;
+	font-size: 0.95rem;
+	cursor: pointer;
+	transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.date-input:hover {
+	border-color: var(--accent);
+}
+
+.date-input:focus {
+	outline: none;
+	border-color: var(--accent-2);
+	box-shadow: 0 0 12px rgba(84, 196, 180, 0.24);
+}
+
+.filter-button {
+	appearance: none;
+	border: 1px solid var(--accent-2);
+	border-radius: 18px;
+	padding: 0.9rem 1rem;
+	color: var(--accent-2);
+	background: transparent;
+	font-weight: 700;
+	cursor: pointer;
+	transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.filter-button:hover {
+	transform: translateY(-1px);
+	background: rgba(84, 196, 180, 0.18);
+	color: #fff;
+}
+
 .kpi-grid {
 	display: grid;
 	grid-template-columns: repeat(6, minmax(0, 1fr));

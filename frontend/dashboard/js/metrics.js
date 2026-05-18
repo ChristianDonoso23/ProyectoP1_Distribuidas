@@ -43,24 +43,16 @@
 		return new Date(date).toLocaleString('es-EC');
 	}
 
-	function sortByProtocol(eventos) {
-		const tcp = eventos.filter(e => (e.protocolo || '').toUpperCase() === 'TCP').slice(0, 8);
-		const udp = eventos.filter(e => (e.protocolo || '').toUpperCase() === 'UDP').slice(0, 8);
-		return { tcp, udp };
-	}
+	// Protocol-specific grouping removed (no TCP/UDP panels)
 
 	async function loadState() {
 		const summary = await fetchDashboard();
 		const mesas = await fetchMesas();
 		const eventos = await fetchEventos();
-		const { tcp, udp } = sortByProtocol(eventos);
-
 		return {
 			summary,
 			mesas,
 			eventos,
-			tcpLogs: tcp,
-			udpLogs: udp,
 			occupied: summary.mesas_ocupadas || 0,
 			available: Math.max(0, mesas.length - (summary.mesas_ocupadas || 0))
 		};

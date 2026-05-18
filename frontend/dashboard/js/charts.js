@@ -63,33 +63,22 @@
 		renderBarList(container, 'Mesas', `${state.mesas.length} totales`, items);
 	}
 
-	function renderProtocolChart(container, state) {
-		const items = [];
-		if (state.tcpLogs.length > 0) items.push({ label: 'TCP', value: state.tcpLogs.length });
-		if (state.udpLogs.length > 0) items.push({ label: 'UDP', value: state.udpLogs.length });
-		if (items.length === 0) items.push({ label: 'Sin datos', value: 0 });
-
-		renderBarList(container, 'Protocolos', `${state.eventos.length} eventos`, items);
+	// Protocol panel removed — no-op placeholder kept for compatibility
+	function renderProtocolChart() {
+		return;
 	}
 
 	function renderDashboard(state) {
 		const kpiGrid = document.getElementById('kpi-grid');
 		const statusChart = document.getElementById('status-chart');
-		const protocolChart = document.getElementById('protocol-chart');
 		const occupancyBadge = document.getElementById('occupancy-badge');
 		const protocolBadge = document.getElementById('protocol-badge');
 
 		renderMetricCards(kpiGrid, state.summary);
 		renderStatusChart(statusChart, state);
-		renderProtocolChart(protocolChart, state);
-
+    
 		if (occupancyBadge) {
 			occupancyBadge.textContent = `${state.occupied}/${state.available}`;
-		}
-
-		if (protocolBadge) {
-			const count = (state.tcpLogs.length > 0 ? 1 : 0) + (state.udpLogs.length > 0 ? 1 : 0);
-			protocolBadge.textContent = `${count} protocolos`;
 		}
 	}
 

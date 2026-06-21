@@ -5,12 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node backend/server.js",
-    "dev": "nodemon backend/server.js",
-    "tcp": "node backend/sockets/tcpServer.js",
-    "udp": "node backend/sockets/udpServer.js",
-    "simulator": "node simulator/test-events/fakeTraffic.js",
-    "cocina": "node simulator/cocina/cocinaTCP.js",
-    "sensor": "node simulator/sensores/sensorUDP.js"
+    "dev": "nodemon backend/server.js"
   },
   "repository": {
     "type": "git",

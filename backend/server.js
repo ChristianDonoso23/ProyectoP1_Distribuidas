@@ -24,11 +24,12 @@ const io = new Server(server, {
         methods: ['GET', 'POST']
     }
 });
+const seleccionPorMesa = new Map();
+const mesasPorSocket = new Map();
 
 // Middlewares básicos
 app.use(cors());
 app.use(requestLogger);
-app.use(errorHandler);
 app.use(express.json());
 
 // Servir archivos estáticos del dashboard
@@ -41,12 +42,90 @@ app.use('/api/facturas', facturasRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/eventos', eventosRoutes);
 
+io.on('connection', (socket) => {
+    mesasPorSocket.set(socket.id, new Set());
+
+    socket.on('mesa-seleccionada', (event) => {
+        const idMesa = parseInt(event?.id_mesa);
+        const clientId = String(event?.clientId || '').trim();
+
+        if (!idMesa || !clientId) {
+            socket.emit('mesa-seleccionada-rechazada', { id_mesa: idMesa || null, motivo: 'Datos incompletos' });
+            return;
+        }
+
+        const propietarioActual = seleccionPorMesa.get(idMesa);
+        if (propietarioActual && propietarioActual !== clientId) {
+            // Rechazar de inmediato si ya es de otro cliente
+            socket.emit('mesa-seleccionada-rechazada', { id_mesa: idMesa, motivo: 'Mesa seleccionada por otro cliente', seleccionada_por: propietarioActual });
+            // Enviar el estado real a este cliente para que vea quién la tiene
+            io.to(socket.id).emit('mesa-ocupada-por', { id_mesa: idMesa, clientId: propietarioActual });
+            return;
+        }
+
+        // Solo permitir si es la primera vez o si es el mismo dueño
+        seleccionPorMesa.set(idMesa, clientId);
+        mesasPorSocket.get(socket.id).add(idMesa);
+        // Notificar a TODOS que esta mesa tiene nuevo dueño
+        io.emit('mesa-seleccionada', { id_mesa: idMesa, clientId });
+        // Confirmación privada al cliente
+        socket.emit('mesa-seleccionada-confirmada', { id_mesa: idMesa, clientId });
+    });
+
+    socket.on('mesa-deseleccionada', (event) => {
+        const idMesa = parseInt(event?.id_mesa);
+        const clientId = String(event?.clientId || '').trim();
+
+        if (!idMesa || !clientId) {
+            return;
+        }
+
+        const propietarioActual = seleccionPorMesa.get(idMesa);
+        // Validar que SOLO el propietario pueda desseleccionar
+        if (propietarioActual !== clientId) {
+            socket.emit('mesa-deseleccionada-rechazada', { id_mesa: idMesa, motivo: 'Solo el cliente propietario puede liberar la selección' });
+            return;
+        }
+
+        seleccionPorMesa.delete(idMesa);
+        mesasPorSocket.get(socket.id)?.delete(idMesa);
+        // Notificar a todos que la mesa fue liberada
+        io.emit('mesa-deseleccionada', { id_mesa: idMesa, clientId });
+        // Confirmación privada
+        socket.emit('mesa-deseleccionada-confirmada', { id_mesa: idMesa, clientId });
+    });
+
+    socket.on('disconnect', () => {
+        const mesasSeleccionadas = mesasPorSocket.get(socket.id);
+
+        if (mesasSeleccionadas) {
+            for (const idMesa of mesasSeleccionadas) {
+                const propietarioActual = seleccionPorMesa.get(idMesa);
+                if (propietarioActual) {
+                    seleccionPorMesa.delete(idMesa);
+                    io.emit('mesa-deseleccionada', { id_mesa: idMesa, clientId: propietarioActual, motivo: 'desconexion' });
+                }
+            }
+        }
+
+        mesasPorSocket.delete(socket.id);
+    });
+});
+
 subscribe('mesa-ocupada', (event) => {
-    io.emit('mesa-ocupada', event.payload || event); 
+    const payload = event.payload || event;
+    if (payload?.id_mesa) {
+        seleccionPorMesa.delete(parseInt(payload.id_mesa));
+    }
+    io.emit('mesa-ocupada', payload); 
 });
 
 subscribe('mesa-liberada', (event) => {
-    io.emit('mesa-liberada', event.payload || event);
+    const payload = event.payload || event;
+    if (payload?.id_mesa) {
+        seleccionPorMesa.delete(parseInt(payload.id_mesa));
+    }
+    io.emit('mesa-liberada', payload);
 });
 
 // Ruta base de prueba (solo para saber que el server levantó)

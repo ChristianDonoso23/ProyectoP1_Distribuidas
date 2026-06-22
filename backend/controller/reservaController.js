@@ -1,13 +1,24 @@
 const Reserva = require('../models/Reserva');
 const Evento = require('../models/Evento');
-const { broadcast } = require('../services/websocketService'); // <-- Eslabón perdido añadido
+const { broadcast } = require('../services/websocketService');
 
 exports.crearReserva = async (req, res) => {
-    const { id_mesa, cliente_id, nombre_cliente, expiracion } = req.body;
+    // 1. Extraemos solo los datos de la mesa y expiración del body
+    const { id_mesa, expiracion } = req.body;
+    
+    // 2. Extraemos la identidad del usuario desde el middleware (JWT)
+    // Asumimos que tu authMiddleware inyecta req.userId (ID de Mongo) y req.correo
+    const cliente_id = req.userId; 
+    const nombre_cliente = req.correo; 
 
-    // Validar que vengan los campos obligatorios
-    if (!id_mesa || !cliente_id || !nombre_cliente) {
-        return res.status(400).json({ success: false, message: "Faltan campos requeridos: id_mesa, cliente_id y nombre_cliente" });
+    // Validar que vengan los campos de la mesa
+    if (!id_mesa) {
+        return res.status(400).json({ success: false, message: "Faltan campos requeridos: id_mesa" });
+    }
+
+    // Validar seguridad: Asegurar que el token inyectó la identidad
+    if (!cliente_id || !nombre_cliente) {
+        return res.status(401).json({ success: false, message: "No se pudo identificar al usuario desde el token" });
     }
 
     try {
@@ -20,7 +31,7 @@ exports.crearReserva = async (req, res) => {
             return res.status(400).json({ success: false, message: "La mesa ya está ocupada o reservada" });
         }
 
-        // 3. Crear reserva
+        // 3. Crear reserva usando la identidad del token
         const id_reserva = await Reserva.create({ id_mesa, cliente_id, nombre_cliente, expiracion });
 
         // 4. Registrar evento (Trazabilidad)
@@ -45,7 +56,10 @@ exports.crearReserva = async (req, res) => {
 exports.finalizarReserva = async (req, res) => {
     try {
         const { id } = req.params;
-        const { id_mesa, cliente_id, nombre_cliente } = req.body;
+        const { id_mesa } = req.body;
+        
+        // Identidad desde el token
+        const cliente_id_token = req.userId;
 
         const reserva = await Reserva.getById(id);
 
@@ -57,21 +71,24 @@ exports.finalizarReserva = async (req, res) => {
             return res.status(400).json({ success: false, message: 'La reserva no corresponde a la mesa indicada' });
         }
 
-        if (cliente_id && String(reserva.cliente_id || '').trim() !== String(cliente_id).trim()) {
-            return res.status(403).json({ success: false, message: 'La reserva pertenece a otro cliente' });
-        }
+        // Limpieza de datos para comparar
+        const idBD = String(reserva.cliente_id || '').trim();
+        const idToken = String(cliente_id_token || '').trim();
 
-        if (nombre_cliente && String(reserva.nombre_cliente).trim() !== String(nombre_cliente).trim()) {
-            return res.status(403).json({ success: false, message: 'La reserva pertenece a otro cliente' });
+        // Validación con Debug inyectado
+        if (idBD !== idToken) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'La reserva pertenece a otro cliente y no tienes permisos para finalizarla',
+            });
         }
         
-        // Primero necesitamos saber qué mesa era para liberar el color en React
-        // Como tu modelo Reserva no tiene getById, asumimos que el body trae el id_mesa (o lo adaptas luego)
-        // Por ahora, solo cambiamos el estado.
         await Reserva.updateEstado(id, 'finalizada');
+        const Evento = require('../models/Evento'); // Asegurando importación
         await Evento.registrar('FINALIZAR_RESERVA', 'HTTP', `Reserva ${id} marcada como finalizada`);
         
         if (id_mesa) {
+            const { broadcast } = require('../services/websocketService');
             broadcast('mesa-liberada', { id_mesa: parseInt(id_mesa) });
         }
 
@@ -82,7 +99,6 @@ exports.finalizarReserva = async (req, res) => {
     }
 };
 
-// NUEVO: Obtener reservas pendientes de pago para el dashboard admin
 exports.obtenerReservasPendientes = async (req, res) => {
     try {
         const reservas = await Reserva.getByEstado('pendiente');

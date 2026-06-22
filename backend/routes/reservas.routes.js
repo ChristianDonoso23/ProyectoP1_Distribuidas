@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const reservaController = require('../controller/reservaController');
+const authMiddleware = require('../middlewares/authMiddleware');
 
+router.post('/', authMiddleware, reservaController.crearReserva);
 router.post('/', reservaController.crearReserva);
-router.put('/:id/finalizar', reservaController.finalizarReserva);
+router.put('/:id/finalizar', authMiddleware, reservaController.finalizarReserva);
 router.post('/admin/liberar-todas', reservaController.liberarTodasLasMesas);
 
-// NUEVO: Obtener reservas pendientes para admin
 router.get('/admin/pendientes', reservaController.obtenerReservasPendientes);
 
 module.exports = router;

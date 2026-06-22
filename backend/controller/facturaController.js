@@ -26,10 +26,9 @@ exports.generarFactura = async (req, res) => {
             return res.status(403).json({ success: false, message: 'La reserva pertenece a otro cliente' });
         }
 
-        // Obtener datos de la mesa para el precio si no envían subtotal
         const mesa = await Mesa.getById(id_mesa);
         const subtotalCalc = req.body.subtotal ? parseFloat(req.body.subtotal) : parseFloat(mesa.precio_base);
-        const impuestos = subtotalCalc * 0.15; // Ejemplo 15% IVA
+        const impuestos = subtotalCalc * 0.15;
         const total = subtotalCalc + impuestos;
 
         const facturaData = {

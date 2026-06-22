@@ -1,29 +1,23 @@
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
+import Auth from './components/Auth';
 import './App.css';
 
-const socket = io('http://localhost:3000');
-const CLIENT_STORAGE_KEY = 'erestaurante_cliente_id';
-
-function getOrCreateClientId() {
-  try {
-    const existing = localStorage.getItem(CLIENT_STORAGE_KEY);
-    if (existing) {
-      return existing;
-    }
-
-    const generated = (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
-      ? globalThis.crypto.randomUUID()
-      : `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-    localStorage.setItem(CLIENT_STORAGE_KEY, generated);
-    return generated;
-  } catch {
-    return `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  }
-}
+// 1. Inicializar Socket apagado (se conecta manual tras el login)
+const socket = io('http://localhost:3000', { autoConnect: false });
 
 function App() {
+  // 2. Estados de Autenticación
+  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [usuario, setUsuario] = useState(() => {
+    const saved = localStorage.getItem('usuario');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // El cliente ID ahora es el ID real de MongoDB, asegurando trazabilidad
+  const clienteId = usuario?.id; 
+
+  // Estados originales del sistema
   const [mesas, setMesas] = useState([]);
   const [seleccionadas, setSeleccionadas] = useState([]);
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
@@ -33,7 +27,20 @@ function App() {
   const [pagoMetodo, setPagoMetodo] = useState('');
   const [cargando, setCargando] = useState(false);
   const [mesaCheckout, setMesaCheckout] = useState(null);
-  const [clienteId] = useState(() => getOrCreateClientId());
+
+  // Funciones de Sesión
+  const handleLoginSuccess = (newToken, userData) => {
+    localStorage.setItem('token', newToken);
+    localStorage.setItem('usuario', JSON.stringify(userData));
+    window.location.reload();
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    socket.disconnect();
+    window.location.reload();
+  };
 
   // Reloj interno
   useEffect(() => {
@@ -41,11 +48,19 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Carga inicial y WebSockets
+  // Carga inicial y WebSockets (Protegidos)
   useEffect(() => {
+    if (!token || !clienteId) return;
+
+    // Conectar socket y enviar token (opcional para el backend)
+    socket.auth = { token };
+    socket.connect();
+
     const cargarMesas = async () => {
       try {
-        const respuesta = await fetch('http://localhost:3000/api/mesas');
+        const respuesta = await fetch('http://localhost:3000/api/mesas', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         const data = await respuesta.json();
         if (data.success) {
           setMesas(data.data);
@@ -57,7 +72,7 @@ function App() {
 
     cargarMesas();
 
-    // Evento: mesa ocupada (incluye expiracion desde el backend corregido)
+    // Eventos Sockets
     socket.on('mesa-ocupada', (data) => {
       const idMesa = parseInt(data.id_mesa);
       const expiracion = data.expiracion || null;
@@ -69,7 +84,6 @@ function App() {
       setSeleccionadas(prev => prev.filter(id => id !== idMesa));
     });
 
-    // Evento: mesa liberada
     socket.on('mesa-liberada', (data) => {
       const idMesa = parseInt(data.id_mesa);
       setMesas(prev => prev.map(m =>
@@ -77,21 +91,15 @@ function App() {
           ? { ...m, estado: 'disponible', expiracion: null, cliente_id: null, seleccionada_global: false }
           : m
       ));
-      // Deseleccionar si estaba seleccionada
       setSeleccionadas(prev => prev.filter(id => id !== idMesa));
     });
 
     socket.on('mesa-seleccionada', (data) => {
       const idMesa = parseInt(data.id_mesa);
       const esMiaMesa = data.clientId === clienteId;
-      
       setMesas(prev => prev.map(m =>
-        m.id_mesa === idMesa
-          ? { ...m, seleccionada_global: true, seleccionada_por: data.clientId || null }
-          : m
+        m.id_mesa === idMesa ? { ...m, seleccionada_global: true, seleccionada_por: data.clientId || null } : m
       ));
-      
-      // Solo si es nuestra mesa, actualizar seleccionadas
       if (esMiaMesa) {
         setSeleccionadas(prev => prev.includes(idMesa) ? prev : [...prev, idMesa]);
       }
@@ -100,38 +108,29 @@ function App() {
     socket.on('mesa-deseleccionada', (data) => {
       const idMesa = parseInt(data.id_mesa);
       const esMiaMesa = data.clientId === clienteId;
-      
       setMesas(prev => prev.map(m =>
-        m.id_mesa === idMesa
-          ? { ...m, seleccionada_global: false, seleccionada_por: null }
-          : m
+        m.id_mesa === idMesa ? { ...m, seleccionada_global: false, seleccionada_por: null } : m
       ));
-      
-      // Solo limpiar de seleccionadas si es NUESTRA mesa
       if (esMiaMesa) {
         setSeleccionadas(prev => prev.filter(id => id !== idMesa));
       }
     });
 
     socket.on('mesa-seleccionada-rechazada', (data) => {
-      // Actualizar estado para que se vea que otro cliente la tiene
       if (data?.seleccionada_por) {
         setMesas(prev => prev.map(m =>
           m.id_mesa === parseInt(data.id_mesa)
-            ? { ...m, seleccionada_global: true, seleccionada_por: data.seleccionada_por }
-            : m
+            ? { ...m, seleccionada_global: true, seleccionada_por: data.seleccionada_por } : m
         ));
       }
       setMensaje({ texto: '⚠ ' + (data?.motivo || 'Esa mesa ya fue seleccionada por otro cliente.'), tipo: 'error' });
     });
 
     socket.on('mesa-ocupada-por', (data) => {
-      // Actualizar si otro cliente tiene la mesa
       if (data?.clientId) {
         setMesas(prev => prev.map(m =>
           m.id_mesa === parseInt(data.id_mesa)
-            ? { ...m, seleccionada_global: true, seleccionada_por: data.clientId }
-            : m
+            ? { ...m, seleccionada_global: true, seleccionada_por: data.clientId } : m
         ));
       }
     });
@@ -157,12 +156,17 @@ function App() {
       socket.off('mesa-liberada');
       socket.off('mesa-seleccionada');
       socket.off('mesa-deseleccionada');
+      socket.disconnect(); // Previene fugas de memoria y reconexiones fantasmas
     };
-  }, []);
+  }, [token, clienteId]); // Dependencias: se reconecta si cambia el token
+
+  // Control de Acceso: Renderizado Condicional
+  if (!token) {
+    return <Auth onLoginSuccess={handleLoginSuccess} />;
+  }
 
   // Manejo de Selección Múltiple y Checkout
   const handleMesaClick = (mesa) => {
-    // Bloqueo defensivo: si está seleccionada por otro cliente, rechazar de inmediato
     const esDeOtroCliente = mesa.seleccionada_global && mesa.seleccionada_por && String(mesa.seleccionada_por) !== String(clienteId);
     const esOcupadaPorOtro = mesa.estado === 'ocupada' && mesa.cliente_id && String(mesa.cliente_id) !== String(clienteId);
 
@@ -178,18 +182,13 @@ function App() {
 
     if (mesa.estado === 'disponible') {
       const estaSeleccionada = seleccionadas.includes(mesa.id_mesa);
-
       if (estaSeleccionada) {
-        // Solo permitir desseleccionar si es nuestro - EMITIR SIN ACTUALIZAR
         socket.emit('mesa-deseleccionada', { id_mesa: mesa.id_mesa, clientId: clienteId });
       } else {
-        // Intentar seleccionar - EMITIR SIN ACTUALIZAR
         socket.emit('mesa-seleccionada', { id_mesa: mesa.id_mesa, clientId: clienteId });
       }
-
       setMensaje({ texto: '', tipo: '' });
     } else if (mesa.estado === 'ocupada') {
-      // Agrupar solo mesas del mismo propietario
       const mesasDelCliente = mesas.filter(m => m.estado === 'ocupada' && String(m.cliente_id || '') === String(mesa.cliente_id || ''));
       setMesaCheckout({
         ...mesa,
@@ -211,7 +210,7 @@ function App() {
     return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
   };
 
-  // Finalizar Reserva - ESPERAR A QUE ADMIN CONFIRME PAGO
+  // Finalizar Reserva 
   const finalizarReservaYFacturar = async (e) => {
     e.preventDefault();
     if (!mesaCheckout) return;
@@ -219,14 +218,15 @@ function App() {
     setCargando(true);
     try {
       const nombre_cliente = e.target.nombre_cliente.value.trim();
-      
       const numeros_mesas = mesaCheckout.mesasGrupo.map(m => m.numero_mesa).join(', ');
 
-      // 1. Finalizar reserva de todas las mesas del grupo
       for (const m of mesaCheckout.mesasGrupo) {
         const finalizarRes = await fetch(`http://localhost:3000/api/reservas/${m.id_reserva}/finalizar`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // JWT inyectado
+          },
           body: JSON.stringify({ id_mesa: m.id_mesa, cliente_id: clienteId, nombre_cliente })
         });
 
@@ -236,24 +236,18 @@ function App() {
         }
       }
 
-      // Mostrar mensaje de confirmación
-      setMensaje({ 
-        texto: `✓ Reserva Mesa ${numeros_mesas} confirmada. El administrador procesará el pago.`, 
-        tipo: 'success' 
-      });
-      
+      setMensaje({ texto: `✓ Reserva Mesa ${numeros_mesas} confirmada. El administrador procesará el pago.`, tipo: 'success' });
       setMesaCheckout(null);
       setMostrarFactura(false);
-
       setTimeout(() => setMensaje({texto: '', tipo: ''}), 4000);
 
     } catch (error) {
-      setMensaje({ texto: 'Error al finalizar las mesas.', tipo: 'error' });
+      setMensaje({ texto: error.message || 'Error al finalizar las mesas.', tipo: 'error' });
     }
     setCargando(false);
   };
 
-  // Procesamiento de Reserva Múltiple + Generación de Factura
+  // Procesamiento de Reserva Múltiple
   const hacerReservaMultiple = async (e) => {
     e.preventDefault();
     if (seleccionadas.length === 0) {
@@ -262,7 +256,6 @@ function App() {
     }
 
     const nombre = e.target.nombre_cliente.value.trim();
-
     const fechaExp = new Date();
     fechaExp.setHours(fechaExp.getHours() + 1);
     const expiracionFormat = fechaExp.toISOString().slice(0, 19).replace('T', ' ');
@@ -272,10 +265,12 @@ function App() {
 
     for (const idMesa of seleccionadas) {
       try {
-        // 1. Crear reserva
         const res = await fetch('http://localhost:3000/api/reservas', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // JWT inyectado
+          },
           body: JSON.stringify({
             id_mesa: idMesa,
             cliente_id: clienteId,
@@ -287,7 +282,6 @@ function App() {
         const reservaData = await res.json();
 
         if (res.ok && reservaData.success) {
-          // Actualizar estado local inmediatamente con todos los datos
           setMesas(prev => prev.map(m =>
             m.id_mesa === idMesa ? { 
               ...m, 
@@ -300,8 +294,6 @@ function App() {
               seleccionada_por: null
             } : m
           ));
-
-
         } else {
           errores++;
         }
@@ -317,19 +309,14 @@ function App() {
       setMensaje({ texto: `✓ Reserva confirmada para ${seleccionadas.length} mesa(s).`, tipo: 'success' });
       setSeleccionadas([]);
       e.target.reset();
-      
-      // Ocultar mensaje automáticamente
-      setTimeout(() => {
-        setMensaje({ texto: '', tipo: '' });
-      }, 4000);
+      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 4000);
     } else {
       setMensaje({ texto: `Se procesó con errores en ${errores} mesa(s).`, tipo: 'error' });
     }
   };
 
-  // Pedir cuenta: generar factura para todas las reservas del cliente
+  // Pedir cuenta
   const pedirCuenta = async () => {
-    // Buscar todas las mesas ocupadas que pertenezcan a este cliente
     const misMesas = mesas.filter(m => m.estado === 'ocupada' && String(m.cliente_id || '') === String(clienteId));
     if (misMesas.length === 0) {
       setMensaje({ texto: 'No tienes mesas ocupadas para pedir cuenta.', tipo: 'error' });
@@ -346,19 +333,20 @@ function App() {
     try {
       const res = await fetch('http://localhost:3000/api/facturas/pedir-cuenta', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // JWT inyectado
+        },
         body: JSON.stringify({ id_reservas, cliente_id: clienteId, nombre_cliente: misMesas[0].nombre_cliente || '', metodo_pago: pagoMetodo || null })
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Error al pedir cuenta');
 
-      // Liberar mesas localmente
       setMesas(prev => prev.map(m => (
         id_reservas.includes(m.id_reserva) ? { ...m, estado: 'disponible', cliente_id: null, id_reserva: null, expiracion: null } : m
       )));
 
-      // Mostrar factura (guardamos objeto con items)
       setFactura({ ...data.data, items: data.items || [] });
       setMostrarFactura(true);
       setMensaje({ texto: 'Factura generada. Puedes ver e imprimirla.', tipo: 'success' });
@@ -370,16 +358,12 @@ function App() {
     setCargando(false);
   };
 
-  // Cuando el usuario selecciona un metodo de pago válido, activar pedido de cuenta automáticamente
   useEffect(() => {
     if (!pagoMetodo) return;
-    // Verificar que el cliente tenga mesas ocupadas
     const misMesas = mesas.filter(m => m.estado === 'ocupada' && String(m.cliente_id || '') === String(clienteId));
     if (misMesas.length === 0) return;
 
-    // Disparar pedirCuenta si no está ya cargando
     if (!cargando) {
-      // Pequeña demora para permitir interacción del usuario
       const t = setTimeout(() => {
         pedirCuenta();
       }, 250);
@@ -393,23 +377,9 @@ function App() {
     return numeros.join(', ');
   };
 
-  const calcularTotalFacturas = () => {
-    if (!factura) return '0.00';
-    if (factura.items && factura.items.length > 0) {
-      const sum = factura.items.reduce((s, it) => s + parseFloat(it.total || 0), 0);
-      return sum.toFixed(2);
-    }
-    return parseFloat(factura.total_pagado || 0).toFixed(2);
-  };
-
-  // Separar mesas por zona
   const mesasGeneral  = mesas.filter(m => m.zona === 'GENERAL');
   const mesasTerraza  = mesas.filter(m => m.zona === 'TERRAZA');
   const mesasVip      = mesas.filter(m => m.zona === 'VIP');
-
-  // Contadores de estado
-  const totalDisponibles = mesas.filter(m => m.estado === 'disponible').length;
-  const totalOcupadas    = mesas.filter(m => m.estado === 'ocupada').length;
 
   const renderMesa = (mesa) => (
     <div
@@ -428,16 +398,22 @@ function App() {
 
   return (
     <div className="App">
-      {/* ── HEADER ── */}
+      {/* ── HEADER Modificado con Info del Usuario ── */}
       <header className="header">
         <div className="header-inner">
           <div className="header-brand">
             <span className="header-icon">🍽</span>
             <h1 className="header-title">E-Restaurante Suite</h1>
           </div>
-          <div className="header-status">
+          <div className="header-status" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <span className="status-dot"></span>
-            <span className="status-text">Sistema Activo</span>
+            <span className="status-text">{usuario?.correo}</span>
+            <button 
+                onClick={handleLogout} 
+                style={{ background: '#dc3545', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+            >
+                Cerrar Sesión
+            </button>
             <span className="header-clock">
               {horaActual.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
@@ -445,32 +421,30 @@ function App() {
         </div>
       </header>
 
-    
-
-      {/* ── DASHBOARD: Plano Izquierda | Form Derecha ── */}
+      {/* ── DASHBOARD ── */}
       <div className="dashboard">
 
         {/* ── PANEL IZQUIERDO: PLANO ── */}
         <section className="panel-plano">
-
           <div className="plano-container">
-            {/* Leyenda de estado DENTRO del plano-container */}
             <div className="plano-estado-bar">
-              <div className="zona-tag general-tag"><div className="estado-label-group">
-                <span className="estado-label-dot disponible-dot"></span>
-                <span className="estado-label-text">Disponible</span>
+              <div className="zona-tag general-tag">
+                <div className="estado-label-group">
+                  <span className="estado-label-dot disponible-dot"></span>
+                  <span className="estado-label-text">Disponible</span>
+                </div>
               </div>
-              
+              <div className="zona-tag terraza-tag">  
+                <div className="estado-label-group">
+                  <span className="estado-label-dot ocupada-dot"></span>
+                  <span className="estado-label-text">Reservado</span>
+                </div>
               </div>
-              <div className="zona-tag terraza-tag">  <div className="estado-label-group">
-                <span className="estado-label-dot ocupada-dot"></span>
-                <span className="estado-label-text">Reservado</span>
-              </div>
-              </div>
-              <div className="zona-tag vip-tag">  <div className="estado-label-group">
-                <span className="estado-label-dot seleccionada-dot"></span>
-                <span className="estado-label-text">Seleccionado</span>
-              </div>
+              <div className="zona-tag vip-tag">  
+                <div className="estado-label-group">
+                  <span className="estado-label-dot seleccionada-dot"></span>
+                  <span className="estado-label-text">Seleccionado</span>
+                </div>
               </div>
             </div>
 
@@ -480,25 +454,14 @@ function App() {
               className="plano-img"
             />
 
-            {/* Zona GENERAL */}
             <div className="zona-overlay zona-general">
-              <div className="zona-grid">
-                {mesasGeneral.map(renderMesa)}
-              </div>
+              <div className="zona-grid">{mesasGeneral.map(renderMesa)}</div>
             </div>
-
-            {/* Zona TERRAZA */}
             <div className="zona-overlay zona-terraza">
-              <div className="zona-grid">
-                {mesasTerraza.map(renderMesa)}
-              </div>
+              <div className="zona-grid">{mesasTerraza.map(renderMesa)}</div>
             </div>
-
-            {/* Zona VIP */}
             <div className="zona-overlay zona-vip">
-              <div className="zona-grid">
-                {mesasVip.map(renderMesa)}
-              </div>
+              <div className="zona-grid">{mesasVip.map(renderMesa)}</div>
             </div>
           </div>
         </section>
@@ -506,13 +469,10 @@ function App() {
         {/* ── PANEL DERECHO: GESTIÓN DE RESERVA ── */}
         <aside className="panel-reserva">
           <div className="panel-reserva-header">
-          <h2 className="titulo-reserva">Gestión de Reserva</h2>
-            
+            <h2 className="titulo-reserva">Gestión de Reserva</h2>
           </div>
 
           <form onSubmit={hacerReservaMultiple} className="reserva-form">
-
-            {/* Mesas seleccionadas */}
             <div className="input-group">
               <label>Mesas Seleccionadas</label>
               <div className={`mesa-seleccionada-box ${seleccionadas.length > 0 ? 'activa' : ''}`}>
@@ -523,18 +483,18 @@ function App() {
               </div>
             </div>
 
-            {/* Nombre del cliente */}
+            {/* Nombre del cliente bloqueado y autocompletado con JWT */}
             <div className="input-group">
               <label>Nombre del Titular</label>
               <input
                 type="text"
                 name="nombre_cliente"
-                required
-                placeholder="Ej: Andrés Mendoza"
+                value={usuario?.correo || ''}
+                readOnly
+                style={{ backgroundColor: '#e9ecef', cursor: 'not-allowed', color: '#495057' }}
+                title="Este campo se auto-completa con tu sesión actual."
               />
             </div>
-
-
 
             <button
               type="submit"
@@ -549,7 +509,6 @@ function App() {
             </button>
           </form>
 
-          {/* Botón para pedir la cuenta si el cliente tiene mesas ocupadas */}
           {mesas.some(m => m.estado === 'ocupada' && String(m.cliente_id || '') === String(clienteId)) && (
             <div style={{marginTop: '12px'}}>
               <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
@@ -565,9 +524,6 @@ function App() {
               </div>
             </div>
           )}
-
-
-
         </aside>
       </div>
 
@@ -584,7 +540,6 @@ function App() {
             </div>
 
             <div className="factura-body">
-              {/* Si el backend devolvió items por mesa los mostramos detallados */}
               {factura.items && factura.items.length > 0 ? (
                 <div>
                   <div className="factura-items-list">
@@ -676,9 +631,9 @@ function App() {
                 <input
                   type="text"
                   name="nombre_cliente"
-                  required
-                  defaultValue={mesaCheckout.nombre_cliente || ''}
-                  placeholder="Debe coincidir con el titular de la reserva"
+                  value={usuario?.correo || ''}
+                  readOnly
+                  style={{ backgroundColor: '#e9ecef', cursor: 'not-allowed', color: '#495057' }}
                 />
               </div>
 
@@ -690,7 +645,6 @@ function App() {
                   required
                   min="0"
                   step="0.01"
-                  placeholder="Ej: 45.50"
                   defaultValue={mesaCheckout.precio_base}
                   readOnly
                   disabled

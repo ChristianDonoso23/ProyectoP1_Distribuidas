@@ -10,7 +10,8 @@ function authMiddleware(req, res, next) {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.userId = decoded.id; // Se inyecta el ID del usuario en la request para su uso en controladores
+        req.userId = decoded.id;
+        req.correo = decoded.correo;
         next();
     } catch (error) {
         return res.status(403).json({ msg: 'Token inválido o expirado.' });

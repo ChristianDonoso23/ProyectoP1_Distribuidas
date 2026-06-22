@@ -36,8 +36,20 @@ const login = async (req, res) => {
         if (!valido) return res.status(401).json({ msg: 'Contraseña incorrecta' });
 
         /* Generar un token JWT con el ID del usuario (Expira en 8 horas como buena práctica) */
-        const token = jwt.sign({ id: usuario._id }, process.env.JWT_SECRET, { expiresIn: '8h' });
-        res.json({ token });
+        const token = jwt.sign(
+            { id: usuario._id, correo: usuario.correo }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: '8h' }
+        );
+
+        /* Retornar el token y la información del usuario */
+        res.json({ 
+            token,
+            usuario: {
+                id: usuario._id,
+                correo: usuario.correo
+            }
+        });
     } catch (error) {
         res.status(500).json({ msg: 'Error interno del servidor', error: error.message });
     }

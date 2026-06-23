@@ -3,22 +3,38 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-// 1. Importar todas tus rutas
+// 1. Configurar dotenv UNA SOLA VEZ, al inicio. 
+// Asumiendo que tu archivo .env está dentro de la carpeta 'backend'
+require('dotenv').config(); 
+
+const http = require('http');
+const { Server } = require('socket.io');
+const { subscribe } = require('./services/websocketService');
+
+// Importaciones de base de datos y utilidades
+const connectMongo = require('./config/mongo');
+const logger = require('./config/logger');
+const morganMiddleware = require('./middlewares/morganMiddleware');
+const errorHandler = require('./middlewares/errorMiddleware');
+
+// Importaciones de Rutas REST
 const mesasRoutes = require('./routes/mesas.routes');
 const reservasRoutes = require('./routes/reservas.routes');
 const facturasRoutes = require('./routes/facturas.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const eventosRoutes = require('./routes/eventos.routes');
-const requestLogger = require('./middlewares/loggerMiddleware');
-const errorHandler = require('./middlewares/errorMiddleware');
+const authRoutes = require('./routes/auth.routes'); // Módulo Auth Parcial 2
+const logsRoutes = require('./routes/logs.routes'); // Módulo Observabilidad Parcial 2
 
 const app = express();
 
 // Middlewares básicos
 app.use(cors());
-app.use(requestLogger);
-app.use(errorHandler);
+app.use(morganMiddleware);
 app.use(express.json());
+
+// 3. Inicializar Conexión a MongoDB (Parcial 2)
+connectMongo().then(() => logger.info('MongoDB conectado exitosamente (Módulo Auth)'));
 
 // Servir archivos estáticos del dashboard
 app.use(express.static(path.join(__dirname, '../frontend/dashboard')));
@@ -29,9 +45,92 @@ app.use('/api/reservas', reservasRoutes);
 app.use('/api/facturas', facturasRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/eventos', eventosRoutes);
+app.use('/api/auth', authRoutes); // Ruta de Autenticación Parcial 2
+app.use('/api/logs', logsRoutes); // Ruta de Logs Parcial 2
 
-// Ruta base de prueba (solo para saber que el server levantó)
+// 5. Configuración de WebSockets (Parcial 1)
+io.on('connection', (socket) => {
+    mesasPorSocket.set(socket.id, new Set());
+
+    socket.on('mesa-seleccionada', (event) => {
+        const idMesa = parseInt(event?.id_mesa);
+        const clientId = String(event?.clientId || '').trim();
+
+        if (!idMesa || !clientId) {
+            socket.emit('mesa-seleccionada-rechazada', { id_mesa: idMesa || null, motivo: 'Datos incompletos' });
+            return;
+        }
+
+        const propietarioActual = seleccionPorMesa.get(idMesa);
+        if (propietarioActual && propietarioActual !== clientId) {
+            socket.emit('mesa-seleccionada-rechazada', { id_mesa: idMesa, motivo: 'Mesa seleccionada por otro cliente', seleccionada_por: propietarioActual });
+            io.to(socket.id).emit('mesa-ocupada-por', { id_mesa: idMesa, clientId: propietarioActual });
+            return;
+        }
+
+        seleccionPorMesa.set(idMesa, clientId);
+        mesasPorSocket.get(socket.id).add(idMesa);
+        io.emit('mesa-seleccionada', { id_mesa: idMesa, clientId });
+        socket.emit('mesa-seleccionada-confirmada', { id_mesa: idMesa, clientId });
+    });
+
+    socket.on('mesa-deseleccionada', (event) => {
+        const idMesa = parseInt(event?.id_mesa);
+        const clientId = String(event?.clientId || '').trim();
+
+        if (!idMesa || !clientId) {
+            return;
+        }
+
+        const propietarioActual = seleccionPorMesa.get(idMesa);
+        if (propietarioActual !== clientId) {
+            socket.emit('mesa-deseleccionada-rechazada', { id_mesa: idMesa, motivo: 'Solo el cliente propietario puede liberar la selección' });
+            return;
+        }
+
+        seleccionPorMesa.delete(idMesa);
+        mesasPorSocket.get(socket.id)?.delete(idMesa);
+        io.emit('mesa-deseleccionada', { id_mesa: idMesa, clientId });
+        socket.emit('mesa-deseleccionada-confirmada', { id_mesa: idMesa, clientId });
+    });
+
+    socket.on('disconnect', () => {
+        const mesasSeleccionadas = mesasPorSocket.get(socket.id);
+
+        if (mesasSeleccionadas) {
+            for (const idMesa of mesasSeleccionadas) {
+                const propietarioActual = seleccionPorMesa.get(idMesa);
+                if (propietarioActual) {
+                    seleccionPorMesa.delete(idMesa);
+                    io.emit('mesa-deseleccionada', { id_mesa: idMesa, clientId: propietarioActual, motivo: 'desconexion' });
+                }
+            }
+        }
+
+        mesasPorSocket.delete(socket.id);
+    });
+});
+
+// 6. Suscripciones a Eventos de Servicios (Parcial 1)
+subscribe('mesa-ocupada', (event) => {
+    const payload = event.payload || event;
+    if (payload?.id_mesa) {
+        seleccionPorMesa.delete(parseInt(payload.id_mesa));
+    }
+    io.emit('mesa-ocupada', payload); 
+});
+
+subscribe('mesa-liberada', (event) => {
+    const payload = event.payload || event;
+    if (payload?.id_mesa) {
+        seleccionPorMesa.delete(parseInt(payload.id_mesa));
+    }
+    io.emit('mesa-liberada', payload);
+});
+
+// Ruta base de prueba
 app.get('/', (req, res) => {
+    logger.info('Ruta raiz accedida');
     res.json({
         success: true,
         message: "API del Sistema de Restaurante corriendo correctamente",
@@ -40,13 +139,27 @@ app.get('/', (req, res) => {
             "/api/reservas",
             "/api/facturas",
             "/api/dashboard",
-            "/api/eventos"
+            "/api/eventos",
+            "/api/auth",
+            "/api/logs"
         ]
     });
 });
 
+// Middleware para manejar rutas no encontradas
+app.use((req, res) => {
+    logger.warn(`404 - Ruta no encontrada: ${req.originalUrl}`);
+    res.status(404).json({ success: false, message: 'Ruta no encontrada' });
+});
+
+// Middleware de Errores Globales (al final)
+app.use((error, req, res, next) => {
+    logger.error(`Error no controlado: ${error.message}`);
+    errorHandler(error, req, res, next);
+});
+
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-    console.log(`Servidor Backend corriendo en el puerto ${PORT}`);
+server.listen(PORT, () => {
+    logger.info(`Servidor Backend corriendo en el puerto ${PORT}`);
 });

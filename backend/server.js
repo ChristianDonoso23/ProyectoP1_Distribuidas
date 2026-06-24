@@ -26,8 +26,8 @@ const reservasRoutes = require('./routes/reservas.routes');
 const facturasRoutes = require('./routes/facturas.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const eventosRoutes = require('./routes/eventos.routes');
-const authRoutes = require('./routes/auth.routes'); // Módulo Auth Parcial 2
-const logsRoutes = require('./routes/logs.routes'); // Módulo Observabilidad Parcial 2
+const authRoutes = require('./routes/auth.routes');
+const logsRoutes = require('./routes/logs.routes');
 
 // Importación del módulo modular de WebSockets
 const { registerSocketHandler } = require('./sockets/socketHandler');

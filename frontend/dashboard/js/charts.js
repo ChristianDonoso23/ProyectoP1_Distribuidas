@@ -7,10 +7,10 @@
 		const cards = [
 			{ label: 'Mesas ocupadas', value: summary.mesas_ocupadas, accent: 'var(--accent-2)' },
 			{ label: 'Mesas disponibles', value: summary.mesas_disponibles, accent: 'var(--accent)' },
-			{ label: 'Ingresos totales', value: '$' + Number(summary.ingresos_totales || 0).toFixed(2), accent: '#a8b8ff' },
+			{ label: 'Ingresos hoy', value: '$' + Number(summary.ingresos_hoy || 0).toFixed(2), accent: '#a8b8ff' },
 			{ label: 'Reservas hoy', value: summary.reservas_hoy, accent: '#8ed17a' },
 			{ label: 'Total de mesas', value: summary.total_mesas || 0, accent: '#ffa8ff' },
-			{ label: 'Eventos registrados', value: summary.eventos_registrados || 0, accent: '#ffd77f' }
+			{ label: 'Eventos hoy', value: summary.eventos_hoy || 0, accent: '#ffd77f' }
 		];
 
 		container.innerHTML = cards.map((card) => `
@@ -63,33 +63,22 @@
 		renderBarList(container, 'Mesas', `${state.mesas.length} totales`, items);
 	}
 
-	function renderProtocolChart(container, state) {
-		const items = [];
-		if (state.tcpLogs.length > 0) items.push({ label: 'TCP', value: state.tcpLogs.length });
-		if (state.udpLogs.length > 0) items.push({ label: 'UDP', value: state.udpLogs.length });
-		if (items.length === 0) items.push({ label: 'Sin datos', value: 0 });
-
-		renderBarList(container, 'Protocolos', `${state.eventos.length} eventos`, items);
+	// Protocol panel removed — no-op placeholder kept for compatibility
+	function renderProtocolChart() {
+		return;
 	}
 
 	function renderDashboard(state) {
 		const kpiGrid = document.getElementById('kpi-grid');
 		const statusChart = document.getElementById('status-chart');
-		const protocolChart = document.getElementById('protocol-chart');
 		const occupancyBadge = document.getElementById('occupancy-badge');
 		const protocolBadge = document.getElementById('protocol-badge');
 
 		renderMetricCards(kpiGrid, state.summary);
 		renderStatusChart(statusChart, state);
-		renderProtocolChart(protocolChart, state);
-
+    
 		if (occupancyBadge) {
 			occupancyBadge.textContent = `${state.occupied}/${state.available}`;
-		}
-
-		if (protocolBadge) {
-			const count = (state.tcpLogs.length > 0 ? 1 : 0) + (state.udpLogs.length > 0 ? 1 : 0);
-			protocolBadge.textContent = `${count} protocolos`;
 		}
 	}
 

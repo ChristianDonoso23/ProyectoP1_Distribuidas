@@ -1,4 +1,3 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -27,19 +26,31 @@ const authRoutes = require('./routes/auth.routes'); // Módulo Auth Parcial 2
 const logsRoutes = require('./routes/logs.routes'); // Módulo Observabilidad Parcial 2
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+    }
+});
 
-// Middlewares básicos
+const seleccionPorMesa = new Map();
+const mesasPorSocket = new Map();
+
+// 2. Middlewares básicos
 app.use(cors());
 app.use(morganMiddleware);
 app.use(express.json());
 
 // 3. Inicializar Conexión a MongoDB (Parcial 2)
-connectMongo().then(() => logger.info('MongoDB conectado exitosamente (Módulo Auth)'));
+connectMongo()
+    .then(() => logger.info('MongoDB conectado exitosamente (Módulo Auth)'))
+    .catch((error) => logger.error(`Error conectando a MongoDB: ${error.message}`));
 
 // Servir archivos estáticos del dashboard
 app.use(express.static(path.join(__dirname, '../frontend/dashboard')));
 
-// 2. Vincular las rutas a los Endpoints de la API
+// 4. Vincular las rutas a los Endpoints de la API
 app.use('/api/mesas', mesasRoutes);
 app.use('/api/reservas', reservasRoutes);
 app.use('/api/facturas', facturasRoutes);

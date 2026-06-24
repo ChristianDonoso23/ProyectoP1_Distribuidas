@@ -66,6 +66,10 @@ CREATE TABLE reservas (
 
     
 
+    cliente_id VARCHAR(100) NOT NULL,
+
+    
+
     nombre_cliente VARCHAR(100) NOT NULL,
 
     
@@ -151,6 +155,19 @@ CREATE TABLE sesiones (
 -- TABLA: FACTURAS
 
 -- Registro histórico de pagos
+
+-- =========================================================
+-- TABLA: FACTURA_RESERVAS
+-- Relaciona facturas con las reservas incluidas en cada factura
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS factura_reservas (
+    id_factura INT NOT NULL,
+    id_reserva INT NOT NULL,
+    PRIMARY KEY (id_factura, id_reserva),
+    FOREIGN KEY (id_factura) REFERENCES facturas(id_factura) ON DELETE CASCADE,
+    FOREIGN KEY (id_reserva) REFERENCES reservas(id_reserva) ON DELETE CASCADE
+);
 
 -- =========================================================
 
@@ -314,6 +331,8 @@ CREATE TABLE logs_errores (
 
 
 
+
+
 -- =========================================================
 
 -- INSERCIÓN DE MESAS
@@ -336,23 +355,23 @@ INSERT INTO mesas (
 
 -- FILA A = VIP ($6)
 
-('A1', 'VIP', 6.00),
+('A1',  'VIP', 6.00),
 
-('A2', 'VIP', 6.00),
+('A2',  'VIP', 6.00),
 
-('A3', 'VIP', 6.00),
+('A3',  'VIP', 6.00),
 
-('A4', 'VIP', 6.00),
+('A4',  'VIP', 6.00),
 
-('A5', 'VIP', 6.00),
+('A5',  'VIP', 6.00),
 
-('A6', 'VIP', 6.00),
+('A6',  'VIP', 6.00),
 
-('A7', 'VIP', 6.00),
+('A7',  'VIP', 6.00),
 
-('A8', 'VIP', 6.00),
+('A8',  'VIP', 6.00),
 
-('A9', 'VIP', 6.00),
+('A9',  'VIP', 6.00),
 
 ('A10', 'VIP', 6.00),
 
@@ -360,23 +379,23 @@ INSERT INTO mesas (
 
 -- FILA B = TERRAZA ($5)
 
-('B1', 'TERRAZA', 5.00),
+('B1',  'TERRAZA', 5.00),
 
-('B2', 'TERRAZA', 5.00),
+('B2',  'TERRAZA', 5.00),
 
-('B3', 'TERRAZA', 5.00),
+('B3',  'TERRAZA', 5.00),
 
-('B4', 'TERRAZA', 5.00),
+('B4',  'TERRAZA', 5.00),
 
-('B5', 'TERRAZA', 5.00),
+('B5',  'TERRAZA', 5.00),
 
-('B6', 'TERRAZA', 5.00),
+('B6',  'TERRAZA', 5.00),
 
-('B7', 'TERRAZA', 5.00),
+('B7',  'TERRAZA', 5.00),
 
-('B8', 'TERRAZA', 5.00),
+('B8',  'TERRAZA', 5.00),
 
-('B9', 'TERRAZA', 5.00),
+('B9',  'TERRAZA', 5.00),
 
 ('B10', 'TERRAZA', 5.00),
 
@@ -384,23 +403,25 @@ INSERT INTO mesas (
 
 -- FILA C = GENERAL ($4)
 
-('C1', 'GENERAL', 4.00),
+('C1',  'GENERAL', 4.00),
 
-('C2', 'GENERAL', 4.00),
+('C2',  'GENERAL', 4.00),
 
-('C3', 'GENERAL', 4.00),
+('C3',  'GENERAL', 4.00),
 
-('C4', 'GENERAL', 4.00),
+('C4',  'GENERAL', 4.00),
 
-('C5', 'GENERAL', 4.00),
+('C5',  'GENERAL', 4.00),
 
-('C6', 'GENERAL', 4.00),
+('C6',  'GENERAL', 4.00),
 
-('C7', 'GENERAL', 4.00),
+('C7',  'GENERAL', 4.00),
 
-('C8', 'GENERAL', 4.00),
+('C8',  'GENERAL', 4.00),
 
-('C9', 'GENERAL', 4.00),
+('C9',  'GENERAL', 4.00),
 
 ('C10', 'GENERAL', 4.00);
+
+
 

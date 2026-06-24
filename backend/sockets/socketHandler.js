@@ -1,4 +1,5 @@
 const EventEmitter = require('events');
+const jwt = require('jsonwebtoken');
 const {
 	appendRuntimeLine,
 	formatStructuredLog,
@@ -114,7 +115,7 @@ function registerSocketHandler(io) {
 		}
 
 		try {
-			const jwt = require('jsonwebtoken');
+            // 2. Se elimina el require síncrono interno
 			const decoded = jwt.verify(token, process.env.JWT_SECRET);
 			socket.userId = decoded.id;
 			socket.correo = decoded.correo;

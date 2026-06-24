@@ -22,7 +22,7 @@ const errorTransport = new transports.File({
 
 // Crear el logger con su configuración
 const logger = createLogger({
-    level: 'info',
+    level: 'silly',
     format: format.combine(
         format.timestamp(),
         format.printf(({ timestamp, level, message }) =>

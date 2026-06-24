@@ -3,7 +3,7 @@ const logger = require('../config/logger');
 
 // Configurar un Stream para que Morgan escriba con Winston
 const stream = {
-    write: (message) => logger.info(message.trim())
+    write: (message) => logger.http(message.trim())
 };
 
 // Creamos el middleware de Morgan con formato personalizado

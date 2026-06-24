@@ -7,6 +7,7 @@ const Mesa = {
             SELECT m.*, 
             IF(r.id_reserva IS NOT NULL, 'ocupada', 'disponible') AS estado,
             r.id_reserva,
+            r.cliente_id,
             r.nombre_cliente,
             r.expiracion
             FROM mesas m
@@ -25,6 +26,7 @@ const Mesa = {
             SELECT m.*, 
             IF(r.id_reserva IS NOT NULL, 'ocupada', 'disponible') AS estado,
             r.id_reserva,
+            r.cliente_id,
             r.nombre_cliente,
             r.expiracion
             FROM mesas m
@@ -43,6 +45,7 @@ const Mesa = {
             SELECT m.*, 
                 IF(r.id_reserva IS NOT NULL, 'ocupada', 'disponible') AS estado,
                 r.id_reserva,
+                r.cliente_id,
                 r.nombre_cliente,
                 r.expiracion
             FROM mesas m

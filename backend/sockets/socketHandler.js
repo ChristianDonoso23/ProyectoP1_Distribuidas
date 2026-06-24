@@ -1,5 +1,4 @@
 const EventEmitter = require('events');
-const Evento = require('../models/Evento');
 const {
 	appendRuntimeLine,
 	formatStructuredLog,
@@ -18,6 +17,10 @@ const runtimeState = {
 	lastEvents: []
 };
 
+// Selection maps for tables
+const seleccionPorMesa = new Map();
+const mesasPorSocket = new Map();
+
 function adjustCounter(counterName, delta) {
 	const currentValue = Number(runtimeState[counterName] || 0);
 	runtimeState[counterName] = Math.max(0, currentValue + delta);
@@ -32,14 +35,7 @@ function pushRecentEvent(entry) {
 	}
 }
 
-async function persistEvent(type, protocol, description) {
-	try {
-		return await Evento.registrar(type, protocol, description);
-	} catch (error) {
-		console.error(formatStructuredLog('SYSTEM', 'No se pudo persistir el evento', { error: error.message }));
-		return null;
-	}
-}
+// MySQL-dependent event persistence has been removed (Centralizing logging with Winston)
 
 async function recordEvent({
 	scope = 'SYSTEM',
@@ -47,7 +43,7 @@ async function recordEvent({
 	type = NORMALIZED_EVENTS.ACTIVIDAD_GENERAL,
 	description = '',
 	details = {},
-	persist = true,
+	persist = true, // Ignored, MySQL persistence removed
 	counterName,
 	counterDelta = 0
 } = {}) {
@@ -62,13 +58,23 @@ async function recordEvent({
 	};
 
 	const line = formatStructuredLog(scope, description, details);
-	console.log(line);
+
+	// Centralized logging via Winston instead of direct console.log
+	if (global.logger) {
+		if (scope === 'ERROR') {
+			global.logger.error(line);
+		} else if (scope === 'WARN') {
+			global.logger.warn(line);
+		} else {
+			global.logger.info(line);
+		}
+	} else {
+		console.log(line);
+	}
 
 	await appendRuntimeLine(line);
 
-	if (persist) {
-		await persistEvent(normalizedType, protocol, description);
-	}
+	// Persist to MySQL has been deleted to fulfill 'Eliminar logs dependientes de MySQL'
 
 	if (counterName && counterDelta !== 0) {
 		adjustCounter(counterName, counterDelta);
@@ -87,10 +93,146 @@ function snapshotRuntime() {
 	};
 }
 
+// Function to subscribe to realtime events
 function subscribe(handler) {
 	realtimeBus.on('event', handler);
 
 	return () => realtimeBus.off('event', handler);
+}
+
+// Registers the complete WebSocket flow, authentication and real-time state
+function registerSocketHandler(io) {
+	// 1. Mandatory JWT Handshake Validation
+	io.use((socket, next) => {
+		const token = socket.handshake.auth?.token || socket.handshake.headers['authorization']?.split(' ')[1];
+		
+		if (!token) {
+			if (global.logger) {
+				global.logger.warn(`Handshake rechazado para el socket ${socket.id}: Token no proporcionado`);
+			}
+			return next(new Error('Acceso denegado. Token no proporcionado.'));
+		}
+
+		try {
+			const jwt = require('jsonwebtoken');
+			const decoded = jwt.verify(token, process.env.JWT_SECRET);
+			socket.userId = decoded.id;
+			socket.correo = decoded.correo;
+			
+			if (global.logger) {
+				global.logger.info(`Handshake WebSocket exitoso para usuario: ${decoded.correo} (socket: ${socket.id})`);
+			}
+			next();
+		} catch (error) {
+			if (global.logger) {
+				global.logger.error(`Handshake rechazado para el socket ${socket.id}: Token inválido o expirado. Error: ${error.message}`);
+			}
+			return next(new Error('Token inválido o expirado.'));
+		}
+	});
+
+	// 2. Socket Connection and Event Listeners
+	io.on('connection', (socket) => {
+		if (global.logger) {
+			global.logger.info(`Cliente conectado por WebSocket: ${socket.id} (Usuario: ${socket.correo})`);
+		}
+		adjustCounter('websocketClients', 1);
+
+		mesasPorSocket.set(socket.id, new Set());
+
+		socket.on('mesa-seleccionada', (event) => {
+			const idMesa = parseInt(event?.id_mesa);
+			const clientId = String(event?.clientId || '').trim();
+
+			if (!idMesa || !clientId) {
+				socket.emit('mesa-seleccionada-rechazada', { id_mesa: idMesa || null, motivo: 'Datos incompletos' });
+				return;
+			}
+
+			const propietarioActual = seleccionPorMesa.get(idMesa);
+			if (propietarioActual && propietarioActual !== clientId) {
+				socket.emit('mesa-seleccionada-rechazada', { id_mesa: idMesa, motivo: 'Mesa seleccionada por otro cliente', seleccionada_por: propietarioActual });
+				io.to(socket.id).emit('mesa-ocupada-por', { id_mesa: idMesa, clientId: propietarioActual });
+				return;
+			}
+
+			seleccionPorMesa.set(idMesa, clientId);
+			mesasPorSocket.get(socket.id).add(idMesa);
+			
+			if (global.logger) {
+				global.logger.info(`Mesa ${idMesa} seleccionada temporalmente por cliente ${clientId} (Usuario: ${socket.correo})`);
+			}
+
+			io.emit('mesa-seleccionada', { id_mesa: idMesa, clientId });
+			socket.emit('mesa-seleccionada-confirmada', { id_mesa: idMesa, clientId });
+		});
+
+		socket.on('mesa-deseleccionada', (event) => {
+			const idMesa = parseInt(event?.id_mesa);
+			const clientId = String(event?.clientId || '').trim();
+
+			if (!idMesa || !clientId) {
+				return;
+			}
+
+			const propietarioActual = seleccionPorMesa.get(idMesa);
+			if (propietarioActual !== clientId) {
+				socket.emit('mesa-deseleccionada-rechazada', { id_mesa: idMesa, motivo: 'Solo el cliente propietario puede liberar la selección' });
+				return;
+			}
+
+			seleccionPorMesa.delete(idMesa);
+			mesasPorSocket.get(socket.id)?.delete(idMesa);
+			
+			if (global.logger) {
+				global.logger.info(`Mesa ${idMesa} deseleccionada por cliente ${clientId} (Usuario: ${socket.correo})`);
+			}
+
+			io.emit('mesa-deseleccionada', { id_mesa: idMesa, clientId });
+			socket.emit('mesa-deseleccionada-confirmada', { id_mesa: idMesa, clientId });
+		});
+
+		socket.on('disconnect', () => {
+			const mesasSeleccionadas = mesasPorSocket.get(socket.id);
+
+			if (mesasSeleccionadas) {
+				for (const idMesa of mesasSeleccionadas) {
+					const propietarioActual = seleccionPorMesa.get(idMesa);
+					if (propietarioActual) {
+						seleccionPorMesa.delete(idMesa);
+						io.emit('mesa-deseleccionada', { id_mesa: idMesa, clientId: propietarioActual, motivo: 'desconexion' });
+					}
+				}
+			}
+
+			mesasPorSocket.delete(socket.id);
+			adjustCounter('websocketClients', -1);
+			
+			if (global.logger) {
+				global.logger.info(`Cliente desconectado de WebSocket: ${socket.id} (Usuario: ${socket.correo})`);
+			}
+		});
+	});
+
+	// 3. Sincronizar con el bus de eventos en tiempo real interno para limpiar selecciones y retransmitir
+	// Se requiere dinámicamente para evitar acoplamiento circular en la importación inicial
+	const { subscribe: serviceSubscribe } = require('../services/websocketService');
+	
+	serviceSubscribe('mesa-ocupada', (event) => {
+		const payload = event.payload || event;
+		if (payload?.id_mesa) {
+			seleccionPorMesa.delete(parseInt(payload.id_mesa));
+		}
+		io.emit('mesa-ocupada', payload); 
+	});
+
+	serviceSubscribe('mesa-liberada', (event) => {
+		const payload = event.payload || event;
+		if (payload?.id_mesa) {
+			seleccionPorMesa.delete(parseInt(payload.id_mesa));
+		}
+		io.emit('mesa-liberada', payload);
+	});
 }
 
 module.exports = {
@@ -99,5 +241,6 @@ module.exports = {
 	recordEvent,
 	snapshotRuntime,
 	subscribe,
-	adjustCounter
+	adjustCounter,
+	registerSocketHandler
 };

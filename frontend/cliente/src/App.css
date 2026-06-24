@@ -425,7 +425,7 @@ body {
 }
 
 .mesa.seleccionada {
-  background:;
+  background: var(--gold-dim);
   border: 2px solid var(--gold);
   color: var(--gold);
   transform: scale(1.08);
@@ -630,6 +630,27 @@ body {
   color: var(--text-muted);
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* Selector de metodo de pago con estilo coherente al boton dorado */
+.metodo-select {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--gold) 0%, #a87c30 100%);
+  color: #0e0f13;
+  border: none;
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  outline: none;
+}
+.metodo-select option { background: var(--bg-card); color: var(--text-primary); }
+.metodo-select:focus { box-shadow: var(--shadow-gold); }
+
+.metodo-select:disabled {
+  background: #2a2d3a;
+  color: var(--text-muted);
+  cursor: not-allowed;
 }
 
 /* Spinner */

@@ -1,14 +1,15 @@
 (function (global) {
 	const API = 'http://localhost:3000/api';
 
-	async function fetchDashboard() {
+	async function fetchDashboard(date) {
 		try {
-			const res = await fetch(`${API}/dashboard`);
+			const url = date ? `${API}/dashboard?date=${date}` : `${API}/dashboard`;
+			const res = await fetch(url);
 			if (!res.ok) throw new Error('Error');
 			const data = await res.json();
-			return data.data || { mesas_ocupadas: 0, ingresos_totales: 0, reservas_hoy: 0 };
+			return data.data || { mesas_ocupadas: 0, ingresos_hoy: 0, reservas_hoy: 0 };
 		} catch {
-			return { mesas_ocupadas: 0, ingresos_totales: 0, reservas_hoy: 0 };
+			return { mesas_ocupadas: 0, ingresos_hoy: 0, reservas_hoy: 0 };
 		}
 	}
 
@@ -23,9 +24,10 @@
 		}
 	}
 
-	async function fetchEventos() {
+	async function fetchEventos(date) {
 		try {
-			const res = await fetch(`${API}/eventos`);
+			const url = date ? `${API}/eventos?date=${date}` : `${API}/eventos`;
+			const res = await fetch(url);
 			if (!res.ok) throw new Error('Error');
 			const data = await res.json();
 			return data.data || [];
@@ -43,24 +45,16 @@
 		return new Date(date).toLocaleString('es-EC');
 	}
 
-	function sortByProtocol(eventos) {
-		const tcp = eventos.filter(e => (e.protocolo || '').toUpperCase() === 'TCP').slice(0, 8);
-		const udp = eventos.filter(e => (e.protocolo || '').toUpperCase() === 'UDP').slice(0, 8);
-		return { tcp, udp };
-	}
+	// Protocol-specific grouping removed (no TCP/UDP panels)
 
-	async function loadState() {
-		const summary = await fetchDashboard();
+	async function loadState(date) {
+		const summary = await fetchDashboard(date);
 		const mesas = await fetchMesas();
-		const eventos = await fetchEventos();
-		const { tcp, udp } = sortByProtocol(eventos);
-
+		const eventos = await fetchEventos(date);
 		return {
 			summary,
 			mesas,
 			eventos,
-			tcpLogs: tcp,
-			udpLogs: udp,
 			occupied: summary.mesas_ocupadas || 0,
 			available: Math.max(0, mesas.length - (summary.mesas_ocupadas || 0))
 		};

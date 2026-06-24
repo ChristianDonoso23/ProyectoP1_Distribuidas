@@ -8,7 +8,11 @@ const usuarioSchema = new mongoose.Schema({
     },
     contrasenia: {
         type: String,
-        required: true
+        required: false
+    },
+    googleId: {
+        type: String,
+        required: false
     }
 }, { timestamps: true });
 

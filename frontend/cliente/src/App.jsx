@@ -14,6 +14,27 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('token');
+    const urlCorreo = params.get('correo');
+    const urlId = params.get('id');
+
+    if (urlToken && urlCorreo && urlId) {
+      const userData = { correo: urlCorreo, id: urlId };
+      
+      // Guardar sesión idéntico a como lo hace el Auth.jsx tradicional
+      localStorage.setItem('token', urlToken);
+      localStorage.setItem('usuario', JSON.stringify(userData));
+      
+      // Limpiar la URL por seguridad (quitar el token de la vista)
+      window.history.replaceState({}, document.title, "/");
+      
+      // Forzar recarga para conectar los Sockets
+      window.location.reload();
+    }
+  }, []);
+
   // El cliente ID ahora es el ID real de MongoDB, asegurando trazabilidad
   const clienteId = usuario?.id; 
 

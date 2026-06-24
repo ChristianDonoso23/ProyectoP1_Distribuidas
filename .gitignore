@@ -21,4 +21,4 @@ dist/
 build/
 
 # Coverage
-coverage/
+coverage/.env

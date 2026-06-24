@@ -96,6 +96,25 @@ export default function Auth({ onLoginSuccess }) {
                         </button>
                     </form>
 
+                    {/* Separador */}
+                    <div style={{ textAlign: 'center', margin: '20px 0', color: '#757575', fontSize: '0.9rem' }}>
+                        O continuar con
+                    </div>
+
+                    {/* Botón de Google */}
+                    <a 
+                        href="http://localhost:3000/api/auth/google" 
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                            width: '100%', padding: '12px', backgroundColor: '#fff', color: '#333',
+                            border: '1px solid #e0e0e0', borderRadius: '8px', textDecoration: 'none',
+                            fontWeight: '600', fontSize: '0.95rem', cursor: 'pointer', transition: 'background 0.2s'
+                        }}
+                    >
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="20" height="20" />
+                        Google
+                    </a>
+
                     <div className="auth-toggle">
                         {isLogin ? '¿No tienes una cuenta? ' : '¿Ya tienes una cuenta? '}
                         <span onClick={toggleAuthMode}>

@@ -12,7 +12,8 @@ const { subscribe } = require('./services/websocketService');
 
 // Importaciones de base de datos y utilidades
 const connectMongo = require('./config/mongo');
-const requestLogger = require('./middlewares/loggerMiddleware');
+const logger = require('./config/logger');
+const morganMiddleware = require('./middlewares/morganMiddleware');
 const errorHandler = require('./middlewares/errorMiddleware');
 
 // Importaciones de Rutas REST
@@ -22,6 +23,7 @@ const facturasRoutes = require('./routes/facturas.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const eventosRoutes = require('./routes/eventos.routes');
 const authRoutes = require('./routes/auth.routes'); // Módulo Auth Parcial 2
+const logsRoutes = require('./routes/logs.routes'); // Módulo Observabilidad Parcial 2
 
 const app = express();
 const server = http.createServer(app);
@@ -37,11 +39,13 @@ const mesasPorSocket = new Map();
 
 // 2. Middlewares básicos
 app.use(cors());
-app.use(requestLogger);
+app.use(morganMiddleware);
 app.use(express.json());
 
 // 3. Inicializar Conexión a MongoDB (Parcial 2)
-connectMongo();
+connectMongo()
+    .then(() => logger.info('MongoDB conectado exitosamente (Módulo Auth)'))
+    .catch((error) => logger.error(`Error conectando a MongoDB: ${error.message}`));
 
 // Servir archivos estáticos del dashboard
 app.use(express.static(path.join(__dirname, '../frontend/dashboard')));
@@ -53,6 +57,7 @@ app.use('/api/facturas', facturasRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/eventos', eventosRoutes);
 app.use('/api/auth', authRoutes); // Ruta de Autenticación Parcial 2
+app.use('/api/logs', logsRoutes); // Ruta de Logs Parcial 2
 
 // 5. Configuración de WebSockets (Parcial 1)
 io.on('connection', (socket) => {
@@ -136,6 +141,7 @@ subscribe('mesa-liberada', (event) => {
 
 // Ruta base de prueba
 app.get('/', (req, res) => {
+    logger.info('Ruta raiz accedida');
     res.json({
         success: true,
         message: "API del Sistema de Restaurante corriendo correctamente",
@@ -145,16 +151,26 @@ app.get('/', (req, res) => {
             "/api/facturas",
             "/api/dashboard",
             "/api/eventos",
-            "/api/auth" // Añadido el endpoint de prueba
+            "/api/auth",
+            "/api/logs"
         ]
     });
 });
 
+// Middleware para manejar rutas no encontradas
+app.use((req, res) => {
+    logger.warn(`404 - Ruta no encontrada: ${req.originalUrl}`);
+    res.status(404).json({ success: false, message: 'Ruta no encontrada' });
+});
+
 // Middleware de Errores Globales (al final)
-app.use(errorHandler);
+app.use((error, req, res, next) => {
+    logger.error(`Error no controlado: ${error.message}`);
+    errorHandler(error, req, res, next);
+});
 
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-    console.log(`Servidor Backend corriendo en el puerto ${PORT}`);
+    logger.info(`Servidor Backend corriendo en el puerto ${PORT}`);
 });

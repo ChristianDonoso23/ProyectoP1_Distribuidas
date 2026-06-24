@@ -11,9 +11,13 @@ async function liberarTodasLasMesas() {
     }
 
     try {
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE}/reservas/admin/liberar-todas`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            }
         });
 
         const data = await response.json();
@@ -42,7 +46,12 @@ async function liberarTodasLasMesas() {
 // Cargar reservas pendientes al iniciar
 async function cargarReservasPendientes() {
     try {
-        const response = await fetch(`${API_BASE}/reservas/admin/pendientes`);
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/reservas/admin/pendientes`, {
+            headers: {
+                'Authorization': token ? `Bearer ${token}` : ''
+            }
+        });
         const data = await response.json();
         
         if (data.success && data.data) {
@@ -144,6 +153,16 @@ async function confirmarPago(e) {
 
 // Cargar reservas pendientes cuando la página carga
 document.addEventListener('DOMContentLoaded', () => {
+    // Vincular el campo del Token JWT
+    const tokenInput = document.getElementById('admin-token-input');
+    if (tokenInput) {
+        tokenInput.value = localStorage.getItem('token') || '';
+        tokenInput.addEventListener('input', (e) => {
+            localStorage.setItem('token', e.target.value.trim());
+            cargarReservasPendientes();
+        });
+    }
+
     cargarReservasPendientes();
 
     document.getElementById('release-all-tables')?.addEventListener('click', liberarTodasLasMesas);

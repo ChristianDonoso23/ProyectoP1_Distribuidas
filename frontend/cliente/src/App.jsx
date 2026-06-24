@@ -665,9 +665,9 @@ function App() {
                 style={{marginTop: '15px'}}
               >
                 {cargando ? (
-                  <><span className="spinner"></span> Confirmando...</>
+                  <><span className="spinner"></span> Procesando...</>
                 ) : (
-                  '✓ Confirmar Reserva'
+                  '✓ Finalizar Consumo y Pedir Cuenta'
                 )}
               </button>
             </form>

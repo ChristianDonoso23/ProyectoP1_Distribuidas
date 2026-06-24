@@ -40,6 +40,20 @@ const Reserva = {
                AND estado IN ("pendiente", "confirmada")`,
             [id_mesa]
         );
+
+        // Sincronizar en MongoDB
+        try {
+            const MongoReserva = require('./mongo/Reserva');
+            const ahora = new Date();
+            await MongoReserva.updateMany(
+                { mesa: id_mesa, estado: { $in: ['pendiente', 'confirmada'] }, expiracion: { $ne: null, $lt: ahora } },
+                { $set: { estado: 'finalizada' } }
+            );
+        } catch (mongoError) {
+            if (global.logger) {
+                global.logger.error(`Error al sincronizar limpiarExpiradas de MySQL a MongoDB para mesa ${id_mesa}: ${mongoError.message}`);
+            }
+        }
     },
 
     // Cambiar estado (confirmada, cancelada, finalizada)
@@ -48,6 +62,23 @@ const Reserva = {
             'UPDATE reservas SET estado = ? WHERE id_reserva = ?',
             [nuevoEstado, id_reserva]
         );
+
+        // Sincronizar en MongoDB
+        try {
+            const MongoReserva = require('./mongo/Reserva');
+            await MongoReserva.updateOne(
+                { mysql_id: Number(id_reserva) },
+                { $set: { estado: nuevoEstado } }
+            );
+            if (global.logger) {
+                global.logger.info(`Sincronizado estado de reserva SQL ID ${id_reserva} a MongoDB: ${nuevoEstado}`);
+            }
+        } catch (mongoError) {
+            if (global.logger) {
+                global.logger.error(`Error al sincronizar estado de reserva SQL ID ${id_reserva} a MongoDB: ${mongoError.message}`);
+            }
+        }
+
         return result.affectedRows > 0;
     },
 
